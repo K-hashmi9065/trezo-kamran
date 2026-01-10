@@ -1,0 +1,101 @@
+name: trezo_saving_ai_app
+description: "A new Flutter project."
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.1
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  
+  cupertino_icons: ^1.0.8
+
+  # State Management (MVVM ViewModel)
+  flutter_riverpod: ^3.0.3
+
+  # Navigation
+  go_router: ^17.0.1
+
+  # Responsive UI
+  flutter_screenutil: ^5.9.3
+
+  # Network
+  dio: ^5.9.0
+
+  # Local Storage (Hive)
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Internet connection check
+  connectivity_plus: ^7.0.0
+
+  intl: ^0.19.0        # Date & currency formatting
+  logger: ^2.4.0       # Better logging
+  uuid: ^4.4.2      # Generate unique IDs
+  equatable: ^2.0.5  # Equatable for value comparison
+  local_auth: ^2.2.0  # Biometric authentication
+  flutter_secure_storage: ^9.2.2 # Secure storage
+  encrypt: ^5.0.3  # Data encryption
+  # pin_code_fields: ^8.0.1 # Pin code input fields
+  fl_chart: ^0.69.0 # Charts and graphs
+  # flutter_local_notifications: ^17.2.3 # Local notifications
+
+  # firebase core things all
+  firebase_core: ^3.10.0
+  firebase_auth: ^5.7.0
+  google_sign_in: ^6.1.0
+  firebase_storage: ^12.4.10   # firebase storage
+  firebase_messaging: ^15.1.3 # Firebase Cloud Messaging
+  cloud_firestore: ^5.6.0  # for firebase firestore
+
+  # upi_india: ^3.0.1 # UPI payments
+
+  google_fonts: ^6.3.3  # Google Fonts
+
+  flutter_svg: ^2.2.3   # check for latest version
+  toastification: ^2.3.0  # Toast notifications
+  dtd: ^4.0.0
+  flutter_lints: ^6.0.0
+  json_rpc_2: ^4.0.0
+  path: ^1.9.1
+  stack_trace: ^1.12.1
+  url_launcher: ^6.3.2
+  web: ^1.1.1
+  photo_manager: ^3.0.0
+  image_picker: ^1.2.1
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+  # Hive code generator
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.13
+
+  # Lint rules
+
+
+flutter:
+
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/images/account/
+    - assets/images/general_ui/
+    - assets/images/auth/
+
+    # - assets/svgs/icons/
+    # - assets/svgs/logo/
+
+  

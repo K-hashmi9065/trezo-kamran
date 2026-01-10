@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "776382900846",
+    "project_id": "terzo-kamran",
+    "storage_bucket": "terzo-kamran.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:776382900846:android:9b174f9ebf2e0913d3d47f",
+        "android_client_info": {
+          "package_name": "com.example.trezo_saving_ai_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "776382900846-9165age433s648i7t2jqqtq9c0a4vjkm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqSV8vEnPa4VolthuJM4UI6kUO_1VXMpQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "776382900846-9165age433s648i7t2jqqtq9c0a4vjkm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
