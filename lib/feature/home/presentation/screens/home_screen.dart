@@ -203,6 +203,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       }
 
+      var activeGoals = List<Goal>.from(state.goals);
+
+      // Apply Filtering
+      if (_currentFilters.isNotEmpty) {
+        if (_currentFilters.contains(FilterOption.notStarted)) {
+          // ... logic if needed, but usually filtering is exclusive or additive
+        }
+        // Simple filtering based on status
+        final showNotStarted = _currentFilters.contains(
+          FilterOption.notStarted,
+        );
+        final showInProgress = _currentFilters.contains(
+          FilterOption.inProgress,
+        );
+        final showCompleted = _currentFilters.contains(FilterOption.completed);
+
+        if (showNotStarted || showInProgress || showCompleted) {
+          activeGoals = activeGoals.where((goal) {
+            if (showCompleted && goal.isCompleted) return true;
+            if (showNotStarted && goal.currentAmount == 0) return true;
+            if (showInProgress && goal.currentAmount > 0 && !goal.isCompleted)
+              return true;
+            return false;
+          }).toList();
+        }
+      }
+
+      // Apply Sorting
+      if (_currentSort != null) {
+        activeGoals.sort((a, b) {
+          switch (_currentSort!) {
+            case SortOption.dateNewestFirst:
+              return b.createdAt.compareTo(a.createdAt);
+            case SortOption.dateOldestFirst:
+              return a.createdAt.compareTo(b.createdAt);
+            case SortOption.alphabeticalAZ:
+              return a.title.compareTo(b.title);
+            case SortOption.alphabeticalZA:
+              return b.title.compareTo(a.title);
+            case SortOption.amountLowToHigh:
+              return a.targetAmount.compareTo(b.targetAmount);
+            case SortOption.amountHighToLow:
+              return b.targetAmount.compareTo(a.targetAmount);
+            case SortOption.deadlineSoonest:
+              if (a.targetDate == null) return 1;
+              if (b.targetDate == null) return -1;
+              return a.targetDate!.compareTo(b.targetDate!);
+            case SortOption.deadlineLatest:
+              if (a.targetDate == null) return 1;
+              if (b.targetDate == null) return -1;
+              return b.targetDate!.compareTo(a.targetDate!);
+          }
+        });
+      }
+
       // Render Gauge View
       if (_isGaugeView) {
         return GridView.builder(
@@ -213,9 +268,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             mainAxisSpacing: 16.h,
             childAspectRatio: 0.75,
           ),
-          itemCount: state.goals.length,
+          itemCount: activeGoals.length,
           itemBuilder: (context, index) {
-            final goal = state.goals[index];
+            final goal = activeGoals[index];
             return GoalGaugeWidget(goal: goal);
           },
         );
@@ -224,10 +279,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // Render Bar Chart View (Default)
       return ListView.separated(
         padding: EdgeInsets.all(16.w),
-        itemCount: state.goals.length,
+        itemCount: activeGoals.length,
         separatorBuilder: (context, index) => SizedBox(height: 16.h),
         itemBuilder: (context, index) {
-          final goal = state.goals[index];
+          final goal = activeGoals[index];
           return GoalCard(goal: goal);
         },
       );

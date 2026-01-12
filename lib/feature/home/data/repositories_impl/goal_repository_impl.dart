@@ -34,24 +34,37 @@ class GoalRepositoryImpl implements GoalRepository {
     if (isConnected) {
       try {
         _logger.i('Fetching goals from remote API');
-        final remoteGoals = await _remoteDataSource.getAllGoals();
 
+        // Ensure user document exists (creates 'users' collection if needed)
+        await _remoteDataSource.ensureUserDocumentExists();
+
+        final remoteGoals = await _remoteDataSource.getAllGoals();
+        final localGoals = await _localDataSource.getAllGoals();
+
+        // If remote is empty but local has data, sync local to remote (Initial Sync)
+        if (remoteGoals.isEmpty && localGoals.isNotEmpty) {
+          _logger.i(
+            'Remote is empty but local has data. Syncing local to remote...',
+          );
+          await _remoteDataSource.syncGoals(localGoals);
+          // Return local goals as they are now the source of truth
+          return localGoals.map((model) => model.toEntity()).toList();
+        }
+
+        // Standard Sync: Remote -> Local
         // Update local cache
         _logger.d('Updating local cache with ${remoteGoals.length} goals');
         for (final goal in remoteGoals) {
           await _localDataSource.createGoal(goal);
         }
 
-        return remoteGoals.map((model) => model.toEntity()).toList();
+        // Fall through to return merged local data.
       } on NetworkException catch (e) {
         _logger.w('Network error while fetching goals: $e');
-        // Fall through to local data
       } on ServerException catch (e) {
         _logger.w('Server error while fetching goals: $e');
-        // Fall through to local data
       } catch (e) {
         _logger.e('Unexpected error while fetching goals: $e');
-        // Fall through to local data
       }
     }
 
@@ -101,25 +114,20 @@ class GoalRepositoryImpl implements GoalRepository {
     _logger.i('Creating goal locally: ${goal.title}');
     await _localDataSource.createGoal(goalModel);
 
-    // Try to sync to remote if online
-    final isConnected = await _networkChecker.isConnected;
-    if (isConnected) {
-      try {
-        _logger.i('Syncing goal to remote API: ${goal.title}');
-        final remoteGoal = await _remoteDataSource.createGoal(goalModel);
+    // Sync to remote (Firestore handles offline queueing)
+    try {
+      _logger.i('Syncing goal to remote API: ${goal.title}');
 
-        // Update local cache with server response (may have server-generated fields)
-        await _localDataSource.updateGoal(remoteGoal);
-      } on NetworkException catch (e) {
-        _logger.w('Failed to sync goal to remote (will retry later): $e');
-        // TODO: Add to sync queue
-      } catch (e) {
-        _logger.e('Error syncing goal to remote: $e');
-        // Goal is saved locally, sync can be retried
-      }
-    } else {
-      _logger.w('Offline: Goal will be synced when online');
-      // TODO: Add to sync queue
+      // Ensure user document exists (creates 'users' collection if needed)
+      await _remoteDataSource.ensureUserDocumentExists();
+
+      final remoteGoal = await _remoteDataSource.createGoal(goalModel);
+
+      // Update local cache with server response (if any changes)
+      await _localDataSource.updateGoal(remoteGoal);
+    } catch (e) {
+      _logger.e('Error syncing goal to remote: $e');
+      // Goal is saved locally, sync is handled by Firestore SDK or next app restart
     }
   }
 
@@ -131,25 +139,19 @@ class GoalRepositoryImpl implements GoalRepository {
     _logger.i('Updating goal locally: ${goal.title}');
     await _localDataSource.updateGoal(goalModel);
 
-    // Try to sync to remote if online
-    final isConnected = await _networkChecker.isConnected;
-    if (isConnected) {
-      try {
-        _logger.i('Syncing goal update to remote API: ${goal.title}');
-        final remoteGoal = await _remoteDataSource.updateGoal(goalModel);
+    // Sync to remote
+    try {
+      _logger.i('Syncing goal update to remote API: ${goal.title}');
 
-        // Update local cache with server response
-        await _localDataSource.updateGoal(remoteGoal);
-      } on NetworkException catch (e) {
-        _logger.w('Failed to sync goal update to remote: $e');
-        // TODO: Add to sync queue
-      } catch (e) {
-        _logger.e('Error syncing goal update to remote: $e');
-        // Goal is updated locally, sync can be retried
-      }
-    } else {
-      _logger.w('Offline: Goal update will be synced when online');
-      // TODO: Add to sync queue
+      // Ensure user document exists
+      await _remoteDataSource.ensureUserDocumentExists();
+
+      final remoteGoal = await _remoteDataSource.updateGoal(goalModel);
+
+      // Update local cache with server response
+      await _localDataSource.updateGoal(remoteGoal);
+    } catch (e) {
+      _logger.e('Error syncing goal update to remote: $e');
     }
   }
 
@@ -159,25 +161,16 @@ class GoalRepositoryImpl implements GoalRepository {
     _logger.i('Deleting goal locally: $id');
     await _localDataSource.deleteGoal(id);
 
-    // Try to sync to remote if online
-    final isConnected = await _networkChecker.isConnected;
-    if (isConnected) {
-      try {
-        _logger.i('Syncing goal deletion to remote API: $id');
-        await _remoteDataSource.deleteGoal(id);
-      } on NotFoundException catch (e) {
+    // Sync to remote
+    try {
+      _logger.i('Syncing goal deletion to remote API: $id');
+      await _remoteDataSource.deleteGoal(id);
+    } catch (e) {
+      if (e is NotFoundException) {
         _logger.w('Goal $id not found on remote (already deleted?): $e');
-        // Goal is deleted locally anyway
-      } on NetworkException catch (e) {
-        _logger.w('Failed to sync goal deletion to remote: $e');
-        // TODO: Add to sync queue
-      } catch (e) {
+      } else {
         _logger.e('Error syncing goal deletion to remote: $e');
-        // Goal is deleted locally, sync can be retried
       }
-    } else {
-      _logger.w('Offline: Goal deletion will be synced when online');
-      // TODO: Add to sync queue
     }
   }
 
@@ -203,28 +196,15 @@ class GoalRepositoryImpl implements GoalRepository {
     _logger.i('Updating goal progress locally: $id (+$amount)');
     await _localDataSource.updateGoal(updatedGoal);
 
-    // Try to sync to remote if online
-    final isConnected = await _networkChecker.isConnected;
-    if (isConnected) {
-      try {
-        _logger.i('Syncing progress update to remote API: $id');
-        final remoteGoal = await _remoteDataSource.updateGoalProgress(
-          id,
-          amount,
-        );
+    // Sync to remote
+    try {
+      _logger.i('Syncing progress update to remote API: $id');
+      final remoteGoal = await _remoteDataSource.updateGoalProgress(id, amount);
 
-        // Update local cache with server response
-        await _localDataSource.updateGoal(remoteGoal);
-      } on NetworkException catch (e) {
-        _logger.w('Failed to sync progress update to remote: $e');
-        // TODO: Add to sync queue
-      } catch (e) {
-        _logger.e('Error syncing progress update to remote: $e');
-        // Progress is updated locally, sync can be retried
-      }
-    } else {
-      _logger.w('Offline: Progress update will be synced when online');
-      // TODO: Add to sync queue
+      // Update local cache with server response
+      await _localDataSource.updateGoal(remoteGoal);
+    } catch (e) {
+      _logger.e('Error syncing progress update to remote: $e');
     }
   }
 

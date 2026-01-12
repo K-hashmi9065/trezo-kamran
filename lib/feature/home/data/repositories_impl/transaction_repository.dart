@@ -36,7 +36,7 @@ class TransactionRepository {
           await _localDataSource.createTransaction(transaction);
         }
 
-        return remoteTransactions;
+        // Don't return here; fall through to return merged local data
       } on NetworkException catch (e) {
         _logger.w('Network error while fetching transactions: $e');
       } on ServerException catch (e) {
@@ -108,36 +108,28 @@ class TransactionRepository {
     _logger.i('Creating transaction locally for goal $goalId');
     await _localDataSource.createTransaction(transaction);
 
-    // Try to sync to remote if online
-    final isConnected = await _networkChecker.isConnected;
-    if (isConnected) {
-      try {
-        _logger.i('Syncing transaction to remote API');
-        final result = await _remoteDataSource.addTransaction(
-          goalId: goalId,
-          amount: amount,
-          type: type,
-          date: date,
-          note: note,
-          category: category,
-          paymentMethod: paymentMethod,
-        );
+    // Sync to remote (Firestore handles offline queueing)
+    try {
+      _logger.i('Syncing transaction to remote API');
+      final result = await _remoteDataSource.addTransaction(
+        goalId: goalId,
+        amount: amount,
+        type: type,
+        date: date,
+        id: transaction.id, // Pass the local ID to remote
+        note: note,
+        category: category,
+        paymentMethod: paymentMethod,
+      );
 
-        final remoteTransaction = result['transaction'] as TransactionModel?;
-        if (remoteTransaction != null) {
-          // Update local cache with server response
-          await _localDataSource.updateTransaction(remoteTransaction);
-          return remoteTransaction;
-        }
-
-        return transaction;
-      } on NetworkException catch (e) {
-        _logger.w('Failed to sync transaction to remote: $e');
-      } catch (e) {
-        _logger.e('Error syncing transaction to remote: $e');
+      final remoteTransaction = result['transaction'] as TransactionModel?;
+      if (remoteTransaction != null) {
+        // Update local cache with server response
+        await _localDataSource.updateTransaction(remoteTransaction);
+        return remoteTransaction;
       }
-    } else {
-      _logger.w('Offline: Transaction will be synced when online');
+    } catch (e) {
+      _logger.e('Error syncing transaction to remote: $e');
     }
 
     return transaction;
@@ -176,32 +168,25 @@ class TransactionRepository {
     _logger.i('Updating transaction locally: $transactionId');
     await _localDataSource.updateTransaction(updatedTransaction);
 
-    // Try to sync to remote if online
-    final isConnected = await _networkChecker.isConnected;
-    if (isConnected) {
-      try {
-        _logger.i('Syncing transaction update to remote API');
-        final remoteTransaction = await _remoteDataSource.updateTransaction(
-          goalId: goalId,
-          transactionId: transactionId,
-          amount: amount,
-          type: type,
-          date: date,
-          note: note,
-          category: category,
-          paymentMethod: paymentMethod,
-        );
+    // Sync to remote
+    try {
+      _logger.i('Syncing transaction update to remote API');
+      final remoteTransaction = await _remoteDataSource.updateTransaction(
+        goalId: goalId,
+        transactionId: transactionId,
+        amount: amount,
+        type: type,
+        date: date,
+        note: note,
+        category: category,
+        paymentMethod: paymentMethod,
+      );
 
-        // Update local cache with server response
-        await _localDataSource.updateTransaction(remoteTransaction);
-        return remoteTransaction;
-      } on NetworkException catch (e) {
-        _logger.w('Failed to sync transaction update to remote: $e');
-      } catch (e) {
-        _logger.e('Error syncing transaction update to remote: $e');
-      }
-    } else {
-      _logger.w('Offline: Transaction update will be synced when online');
+      // Update local cache with server response
+      await _localDataSource.updateTransaction(remoteTransaction);
+      return remoteTransaction;
+    } catch (e) {
+      _logger.e('Error syncing transaction update to remote: $e');
     }
 
     return updatedTransaction;
@@ -213,23 +198,18 @@ class TransactionRepository {
     _logger.i('Deleting transaction locally: $transactionId');
     await _localDataSource.deleteTransaction(transactionId);
 
-    // Try to sync to remote if online
-    final isConnected = await _networkChecker.isConnected;
-    if (isConnected) {
-      try {
-        _logger.i('Syncing transaction deletion to remote API');
-        await _remoteDataSource.deleteTransaction(goalId, transactionId);
-      } on NotFoundException catch (e) {
+    // Sync to remote
+    try {
+      _logger.i('Syncing transaction deletion to remote API');
+      await _remoteDataSource.deleteTransaction(goalId, transactionId);
+    } catch (e) {
+      if (e is NotFoundException) {
         _logger.w(
           'Transaction $transactionId not found on remote (already deleted?): $e',
         );
-      } on NetworkException catch (e) {
-        _logger.w('Failed to sync transaction deletion to remote: $e');
-      } catch (e) {
+      } else {
         _logger.e('Error syncing transaction deletion to remote: $e');
       }
-    } else {
-      _logger.w('Offline: Transaction deletion will be synced when online');
     }
   }
 

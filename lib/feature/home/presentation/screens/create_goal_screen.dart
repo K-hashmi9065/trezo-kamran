@@ -112,16 +112,12 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
       icon: _selectedIcon,
     );
 
-    await ref.read(goalViewModelProvider.notifier).createGoal(goal);
+    final success = await ref
+        .read(goalViewModelProvider.notifier)
+        .createGoal(goal);
     if (!mounted) return;
 
-    // Listen to state changes
-    final state = ref.read(goalViewModelProvider);
-    if (state is GoalSuccess) {
-      // Reload goals to ensure the home screen shows the new goal
-      await ref.read(goalViewModelProvider.notifier).loadGoals();
-      if (!mounted) return;
-
+    if (success) {
       // ignore: use_build_context_synchronously
       AppSnackBar.showSuccess(
         context,
@@ -130,9 +126,12 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
       );
       if (!mounted) return;
       context.pop();
-    } else if (state is GoalError) {
-      // ignore: use_build_context_synchronously
-      AppSnackBar.showError(context, message: state.message, title: 'Error');
+    } else {
+      final state = ref.read(goalViewModelProvider);
+      if (state is GoalError) {
+        // ignore: use_build_context_synchronously
+        AppSnackBar.showError(context, message: state.message, title: 'Error');
+      }
     }
   }
 
@@ -750,8 +749,8 @@ class _AddCoverBottomSheetState extends State<_AddCoverBottomSheet>
     try {
       final XFile? picked = await picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1280,
-        imageQuality: 85,
+        maxWidth: 800,
+        imageQuality: 70,
       );
       if (picked == null) return;
 

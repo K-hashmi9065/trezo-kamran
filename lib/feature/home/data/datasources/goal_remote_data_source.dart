@@ -1,312 +1,256 @@
-import 'package:dio/dio.dart';
-import '../../../../core/network/api_endpoints.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/error/exceptions.dart';
 import '../models/goal_model.dart';
 
-/// Remote data source for goal-related API operations
+/// Remote data source for goal-related operations using Firebase Firestore
 class GoalRemoteDataSource {
-  final Dio _dio;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
-  GoalRemoteDataSource(this._dio);
+  GoalRemoteDataSource(this._firestore, this._auth);
+
+  String get _uid {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw UnauthorizedException('User not authenticated');
+    }
+    return user.uid;
+  }
+
+  CollectionReference<Map<String, dynamic>> get _goalsCollection =>
+      _firestore.collection('users').doc(_uid).collection('goals');
+
+  /// Ensure the user document exists in 'users' collection
+  Future<void> ensureUserDocumentExists() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      // Cannot sync if not logged in
+      return;
+    }
+
+    try {
+      final userDoc = _firestore.collection('users').doc(user.uid);
+      final snapshot = await userDoc.get();
+      if (!snapshot.exists) {
+        await userDoc.set({
+          'createdAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toIso8601String(),
+          'email': user.email,
+          'uid': user.uid,
+          'name': user.displayName,
+          'photoUrl': user.photoURL,
+          'phoneNumber': user.phoneNumber,
+          'isVerified': user.emailVerified,
+          'isPro': false,
+          'gender': null,
+          'address': null,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      throw ServerException('Failed to ensure user document: $e');
+    }
+  }
 
   /// Get all goals for the current user
-  /// Throws [ServerException], [UnauthorizedException], [NetworkException], etc.
   Future<List<GoalModel>> getAllGoals() async {
     try {
-      final response = await _dio.get(ApiEndpoints.goals);
-
-      // Handle different response structures
-      final data = response.data;
-      List<dynamic> goalsJson;
-
-      if (data is Map && data.containsKey('goals')) {
-        goalsJson = data['goals'] as List<dynamic>;
-      } else if (data is List) {
-        goalsJson = data;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
-        );
-      }
-
-      return goalsJson
-          .map((json) => GoalModel.fromJson(json as Map<String, dynamic>))
+      final snapshot = await _goalsCollection.get();
+      return snapshot.docs
+          .map((doc) => GoalModel.fromJson(doc.data()))
           .toList();
-    } on DioException catch (e) {
-      _handleDioError(e);
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
   /// Get a specific goal by ID
-  /// Throws [NotFoundException] if goal not found
   Future<GoalModel> getGoalById(String goalId) async {
     try {
-      final response = await _dio.get(ApiEndpoints.goalById(goalId));
-
-      final data = response.data;
-      Map<String, dynamic> goalJson;
-
-      if (data is Map && data.containsKey('goal')) {
-        goalJson = data['goal'] as Map<String, dynamic>;
-      } else if (data is Map) {
-        goalJson = data as Map<String, dynamic>;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
-        );
+      final doc = await _goalsCollection.doc(goalId).get();
+      if (!doc.exists || doc.data() == null) {
+        throw NotFoundException('Goal not found');
       }
-
-      return GoalModel.fromJson(goalJson);
-    } on DioException catch (e) {
-      _handleDioError(e);
+      return GoalModel.fromJson(doc.data()!);
+    } catch (e) {
+      if (e is NotFoundException) rethrow;
+      throw ServerException(e.toString());
     }
   }
 
   /// Create a new goal
-  /// Returns the created [GoalModel]
   Future<GoalModel> createGoal(GoalModel goal) async {
     try {
-      final response = await _dio.post(
-        ApiEndpoints.createGoal,
-        data: goal.toJson(),
-      );
-
-      final data = response.data;
-      Map<String, dynamic> goalJson;
-
-      if (data is Map && data.containsKey('goal')) {
-        goalJson = data['goal'] as Map<String, dynamic>;
-      } else if (data is Map) {
-        goalJson = data as Map<String, dynamic>;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
-        );
-      }
-
-      return GoalModel.fromJson(goalJson);
-    } on DioException catch (e) {
-      _handleDioError(e);
+      // Use set with specific ID to keep IDs consistent
+      await _goalsCollection.doc(goal.hiveId).set(goal.toJson());
+      return goal;
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
   /// Update an existing goal
-  /// Returns the updated [GoalModel]
   Future<GoalModel> updateGoal(GoalModel goal) async {
     try {
-      final response = await _dio.put(
-        ApiEndpoints.updateGoal(goal.hiveId),
-        data: goal.toJson(),
-      );
-
-      final data = response.data;
-      Map<String, dynamic> goalJson;
-
-      if (data is Map && data.containsKey('goal')) {
-        goalJson = data['goal'] as Map<String, dynamic>;
-      } else if (data is Map) {
-        goalJson = data as Map<String, dynamic>;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
-        );
-      }
-
-      return GoalModel.fromJson(goalJson);
-    } on DioException catch (e) {
-      _handleDioError(e);
+      await _goalsCollection.doc(goal.hiveId).update(goal.toJson());
+      return goal;
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
   /// Delete a goal by ID
   Future<void> deleteGoal(String goalId) async {
     try {
-      await _dio.delete(ApiEndpoints.deleteGoal(goalId));
-    } on DioException catch (e) {
-      _handleDioError(e);
+      await _goalsCollection.doc(goalId).delete();
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
   /// Update goal progress (add to current amount)
-  /// Returns the updated [GoalModel]
   Future<GoalModel> updateGoalProgress(String goalId, double amount) async {
     try {
-      final response = await _dio.patch(
-        ApiEndpoints.updateGoalProgress(goalId),
-        data: {'amount': amount},
-      );
+      final docRef = _goalsCollection.doc(goalId);
 
-      final data = response.data;
-      Map<String, dynamic> goalJson;
+      // using transaction to ensure consistency
+      return await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
 
-      if (data is Map && data.containsKey('goal')) {
-        goalJson = data['goal'] as Map<String, dynamic>;
-      } else if (data is Map) {
-        goalJson = data as Map<String, dynamic>;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
+        if (!snapshot.exists || snapshot.data() == null) {
+          throw NotFoundException('Goal not found');
+        }
+
+        final goal = GoalModel.fromJson(snapshot.data()!);
+
+        transaction.update(docRef, {
+          'currentAmount': FieldValue.increment(amount),
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+
+        return goal.copyWith(
+          currentAmount: goal.hiveCurrentAmount + amount,
+          updatedAt: DateTime.now(),
         );
-      }
-
-      return GoalModel.fromJson(goalJson);
-    } on DioException catch (e) {
-      _handleDioError(e);
+      });
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
-  /// Add a transaction to a goal (deposit/withdrawal)
-  /// Returns both the transaction and updated goal
+  /// Add a transaction to a goal (Note: actively used via TransactionRemoteDataSource, keeping this for potential direct usage or legacy support)
   Future<Map<String, dynamic>> addTransaction({
     required String goalId,
     required double amount,
-    required String type, // 'deposit' or 'withdrawal'
+    required String type,
     required DateTime date,
+    String? id,
     String? note,
+    String? category,
+    String? paymentMethod,
   }) async {
     try {
-      final response = await _dio.post(
-        ApiEndpoints.addGoalTransaction(goalId),
-        data: {
-          'amount': amount,
-          'type': type,
-          'date': date.toIso8601String(),
-          'note': note,
-        },
-      );
+      final txId = id ?? _firestore.collection('tmp').doc().id;
 
-      final data = response.data as Map<String, dynamic>;
-
-      return {
-        'transaction': data['transaction'],
-        'goal': data.containsKey('goal')
-            ? GoalModel.fromJson(data['goal'] as Map<String, dynamic>)
-            : null,
+      final transactionData = {
+        'id': txId,
+        'goalId': goalId,
+        'amount': amount,
+        'type': type,
+        'date': date.toIso8601String(),
+        'note': note,
+        'createdAt': DateTime.now().toIso8601String(),
+        'category': category,
+        'paymentMethod': paymentMethod,
       };
-    } on DioException catch (e) {
-      _handleDioError(e);
+
+      await _firestore.runTransaction((transaction) async {
+        final goalRef = _goalsCollection.doc(goalId);
+        final txRef = goalRef.collection('transactions').doc(txId);
+
+        transaction.set(txRef, transactionData);
+
+        transaction.update(goalRef, {
+          'currentAmount': FieldValue.increment(
+            type == 'deposit' ? amount : -amount,
+          ),
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+      });
+
+      final goal = await getGoalById(goalId);
+
+      return {'transaction': transactionData, 'goal': goal};
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
   /// Get all transactions for a specific goal
   Future<List<Map<String, dynamic>>> getGoalTransactions(String goalId) async {
     try {
-      final response = await _dio.get(ApiEndpoints.goalTransactions(goalId));
+      final snapshot = await _goalsCollection
+          .doc(goalId)
+          .collection('transactions')
+          .orderBy('date', descending: true)
+          .get();
 
-      final data = response.data;
-      List<dynamic> transactionsJson;
-
-      if (data is Map && data.containsKey('transactions')) {
-        transactionsJson = data['transactions'] as List<dynamic>;
-      } else if (data is List) {
-        transactionsJson = data;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
-        );
-      }
-
-      return transactionsJson
-          .map((json) => json as Map<String, dynamic>)
-          .toList();
-    } on DioException catch (e) {
-      _handleDioError(e);
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
   /// Delete a transaction
-  /// Returns the updated goal
   Future<GoalModel?> deleteTransaction(
     String goalId,
     String transactionId,
   ) async {
     try {
-      final response = await _dio.delete(
-        ApiEndpoints.deleteTransaction(goalId, transactionId),
-      );
+      await _firestore.runTransaction((transaction) async {
+        final txRef = _goalsCollection
+            .doc(goalId)
+            .collection('transactions')
+            .doc(transactionId);
+        final txDoc = await transaction.get(txRef);
+        if (!txDoc.exists) return;
 
-      final data = response.data;
+        final data = txDoc.data();
+        if (data != null) {
+          final double amount = (data['amount'] as num).toDouble();
+          final String type = data['type'] as String;
 
-      if (data is Map && data.containsKey('goal')) {
-        return GoalModel.fromJson(data['goal'] as Map<String, dynamic>);
-      }
+          final goalRef = _goalsCollection.doc(goalId);
+          transaction.update(goalRef, {
+            'currentAmount': FieldValue.increment(
+              type == 'deposit' ? -amount : amount,
+            ),
+            'updatedAt': DateTime.now().toIso8601String(),
+          });
+        }
 
-      return null;
-    } on DioException catch (e) {
-      _handleDioError(e);
+        transaction.delete(txRef);
+      });
+
+      return await getGoalById(goalId);
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
   /// Sync local goals with server
-  /// Useful for offline-first functionality
   Future<Map<String, dynamic>> syncGoals(List<GoalModel> localGoals) async {
     try {
-      final response = await _dio.post(
-        ApiEndpoints.syncData,
-        data: {'goals': localGoals.map((g) => g.toJson()).toList()},
-      );
-
-      final data = response.data as Map<String, dynamic>;
-
-      // Parse synced goals
       List<GoalModel> syncedGoals = [];
-      if (data.containsKey('syncedGoals')) {
-        syncedGoals = (data['syncedGoals'] as List)
-            .map((json) => GoalModel.fromJson(json as Map<String, dynamic>))
-            .toList();
+      for (var goal in localGoals) {
+        await _goalsCollection
+            .doc(goal.hiveId)
+            .set(goal.toJson(), SetOptions(merge: true));
+        syncedGoals.add(goal);
       }
-
-      return {'syncedGoals': syncedGoals, 'conflicts': data['conflicts'] ?? []};
-    } on DioException catch (e) {
-      _handleDioError(e);
-    }
-  }
-
-  /// Handle Dio errors and convert to custom exceptions
-  /// The ErrorInterceptor should handle most of this, but this is a fallback
-  Never _handleDioError(DioException error) {
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        throw TimeoutException('Request timed out');
-
-      case DioExceptionType.badResponse:
-        final statusCode = error.response?.statusCode;
-        final message = error.response?.data?['message'] as String?;
-
-        switch (statusCode) {
-          case 401:
-            throw UnauthorizedException(message ?? 'Unauthorized');
-          case 403:
-            throw ForbiddenException(message ?? 'Forbidden');
-          case 404:
-            throw NotFoundException(message ?? 'Goal not found');
-          case 409:
-            throw ConflictException(message ?? 'Conflict occurred');
-          case 422:
-            throw ValidationException(message ?? 'Validation failed');
-          default:
-            throw ServerException(
-              message ?? 'Server error',
-              statusCode: statusCode,
-            );
-        }
-
-      case DioExceptionType.cancel:
-        throw NetworkException('Request was cancelled');
-
-      case DioExceptionType.connectionError:
-        throw NoInternetException();
-
-      default:
-        throw NetworkException(error.message ?? 'Unknown error');
+      return {'syncedGoals': syncedGoals, 'conflicts': []};
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 }

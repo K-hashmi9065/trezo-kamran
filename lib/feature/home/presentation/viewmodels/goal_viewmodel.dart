@@ -68,50 +68,54 @@ class GoalViewModel extends Notifier<GoalState> {
   }
 
   /// Create a new goal
-  Future<void> createGoal(Goal goal) async {
+  Future<bool> createGoal(Goal goal) async {
     state = const GoalLoading();
     try {
       await _createGoalUseCase(goal);
       await loadGoals();
-      state = GoalSuccess('Goal "${goal.title}" created successfully!');
+      return true;
     } catch (e) {
       state = GoalError('Failed to create goal: $e');
+      return false;
     }
   }
 
   /// Update an existing goal
-  Future<void> updateGoal(Goal goal) async {
+  Future<bool> updateGoal(Goal goal) async {
     state = const GoalLoading();
     try {
       await _updateGoalUseCase(goal);
       await loadGoals();
-      state = GoalSuccess('Goal "${goal.title}" updated successfully!');
+      return true;
     } catch (e) {
       state = GoalError('Failed to update goal: $e');
+      return false;
     }
   }
 
   /// Delete a goal
-  Future<void> deleteGoal(String id) async {
+  Future<bool> deleteGoal(String id) async {
     state = const GoalLoading();
     try {
       await _deleteGoalUseCase(id);
       await loadGoals();
-      state = const GoalSuccess('Goal deleted successfully!');
+      return true;
     } catch (e) {
       state = GoalError('Failed to delete goal: $e');
+      return false;
     }
   }
 
   /// Update goal progress (add to current amount)
-  Future<void> updateProgress(String id, double amount) async {
+  Future<bool> updateProgress(String id, double amount) async {
     state = const GoalLoading();
     try {
       await _updateGoalProgressUseCase(id, amount);
       await loadGoals();
-      state = GoalSuccess('Progress updated: +₹${amount.toStringAsFixed(2)}');
+      return true;
     } catch (e) {
       state = GoalError('Failed to update progress: $e');
+      return false;
     }
   }
 

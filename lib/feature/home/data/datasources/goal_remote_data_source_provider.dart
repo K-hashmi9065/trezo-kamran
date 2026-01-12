@@ -1,10 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/network/dio_providers.dart';
 import 'goal_remote_data_source.dart';
 
 /// Provider for GoalRemoteDataSource
-/// Injects authenticated Dio instance
+/// Injects Firestore and FirebaseAuth instances
 final goalRemoteDataSourceProvider = Provider<GoalRemoteDataSource>((ref) {
-  final dio = ref.watch(authenticatedDioProvider);
-  return GoalRemoteDataSource(dio);
+  return GoalRemoteDataSource(
+    FirebaseFirestore.instance,
+    FirebaseAuth.instance,
+  );
 });

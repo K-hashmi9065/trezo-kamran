@@ -1,40 +1,50 @@
-import 'package:dio/dio.dart';
-import '../../../../core/network/api_endpoints.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/error/exceptions.dart';
 import '../models/transaction_model.dart';
+import '../models/goal_model.dart';
 
-/// Remote data source for transaction operations
+/// Remote data source for transaction operations using Firebase Firestore
 class TransactionRemoteDataSource {
-  final Dio _dio;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
-  TransactionRemoteDataSource(this._dio);
+  TransactionRemoteDataSource(this._firestore, this._auth);
+
+  String get _uid {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw UnauthorizedException('User not authenticated');
+    }
+    return user.uid;
+  }
+
+  DocumentReference<Map<String, dynamic>> _getGoalRef(String goalId) {
+    return _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('goals')
+        .doc(goalId);
+  }
+
+  CollectionReference<Map<String, dynamic>> _getTransactionsCollection(
+    String goalId,
+  ) {
+    return _getGoalRef(goalId).collection('transactions');
+  }
 
   /// Get all transactions for a specific goal
   Future<List<TransactionModel>> getGoalTransactions(String goalId) async {
     try {
-      final response = await _dio.get(ApiEndpoints.goalTransactions(goalId));
+      final snapshot = await _getTransactionsCollection(
+        goalId,
+      ).orderBy('date', descending: true).get();
 
-      final data = response.data;
-      List<dynamic> transactionsJson;
-
-      if (data is Map && data.containsKey('transactions')) {
-        transactionsJson = data['transactions'] as List<dynamic>;
-      } else if (data is List) {
-        transactionsJson = data;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
-        );
-      }
-
-      return transactionsJson
-          .map(
-            (json) => TransactionModel.fromJson(json as Map<String, dynamic>),
-          )
+      return snapshot.docs
+          .map((doc) => TransactionModel.fromJson(doc.data()))
           .toList();
-    } on DioException catch (e) {
-      _handleDioError(e);
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
@@ -44,27 +54,18 @@ class TransactionRemoteDataSource {
     String transactionId,
   ) async {
     try {
-      final response = await _dio.get(
-        ApiEndpoints.transactionById(goalId, transactionId),
-      );
+      final doc = await _getTransactionsCollection(
+        goalId,
+      ).doc(transactionId).get();
 
-      final data = response.data;
-      Map<String, dynamic> transactionJson;
-
-      if (data is Map && data.containsKey('transaction')) {
-        transactionJson = data['transaction'] as Map<String, dynamic>;
-      } else if (data is Map) {
-        transactionJson = data as Map<String, dynamic>;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
-        );
+      if (!doc.exists || doc.data() == null) {
+        throw NotFoundException('Transaction not found');
       }
 
-      return TransactionModel.fromJson(transactionJson);
-    } on DioException catch (e) {
-      _handleDioError(e);
+      return TransactionModel.fromJson(doc.data()!);
+    } catch (e) {
+      if (e is NotFoundException) rethrow;
+      throw ServerException(e.toString());
     }
   }
 
@@ -75,35 +76,66 @@ class TransactionRemoteDataSource {
     required double amount,
     required String type,
     required DateTime date,
+    String? id, // Added optional ID to allow syncing local ID
     String? note,
     String? category,
     String? paymentMethod,
   }) async {
     try {
-      final response = await _dio.post(
-        ApiEndpoints.addGoalTransaction(goalId),
-        data: {
-          'amount': amount,
-          'type': type,
-          'date': date.toIso8601String(),
-          if (note != null) 'note': note,
-          if (category != null) 'category': category,
-          if (paymentMethod != null) 'paymentMethod': paymentMethod,
-        },
-      );
+      final txId = id ?? _getTransactionsCollection(goalId).doc().id;
 
-      final data = response.data as Map<String, dynamic>;
-
-      return {
-        'transaction': data['transaction'] != null
-            ? TransactionModel.fromJson(
-                data['transaction'] as Map<String, dynamic>,
-              )
-            : null,
-        'goal': data['goal'], // Will be parsed by GoalRemoteDataSource
+      final transactionData = {
+        'id': txId,
+        'goalId': goalId,
+        'amount': amount,
+        'type': type,
+        'date': date.toIso8601String(),
+        'note': note,
+        'createdAt': DateTime.now().toIso8601String(),
+        'category': category,
+        'paymentMethod': paymentMethod,
       };
-    } on DioException catch (e) {
-      _handleDioError(e);
+
+      return await _firestore.runTransaction((transaction) async {
+        final goalRef = _getGoalRef(goalId);
+        final txRef = _getTransactionsCollection(goalId).doc(txId);
+
+        // Get current goal to ensure it exists
+        final goalSnapshot = await transaction.get(goalRef);
+        if (!goalSnapshot.exists) {
+          throw NotFoundException('Goal not found');
+        }
+
+        // Save transaction
+        transaction.set(txRef, transactionData);
+
+        // Update goal balance
+        double change = 0;
+        if (type == 'deposit') {
+          change = amount;
+        } else if (type == 'withdrawal') {
+          change = -amount;
+        }
+
+        transaction.update(goalRef, {
+          'currentAmount': FieldValue.increment(change),
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+
+        final currentGoalData = goalSnapshot.data()!;
+        final currentAmount = (currentGoalData['currentAmount'] as num)
+            .toDouble();
+
+        final updatedGoalData = Map<String, dynamic>.from(currentGoalData);
+        updatedGoalData['currentAmount'] = currentAmount + change;
+
+        return {
+          'transaction': TransactionModel.fromJson(transactionData),
+          'goal': GoalModel.fromJson(updatedGoalData),
+        };
+      });
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
@@ -119,37 +151,57 @@ class TransactionRemoteDataSource {
     String? paymentMethod,
   }) async {
     try {
-      final updateData = <String, dynamic>{
-        if (amount != null) 'amount': amount,
-        if (type != null) 'type': type,
-        if (date != null) 'date': date.toIso8601String(),
-        if (note != null) 'note': note,
-        if (category != null) 'category': category,
-        if (paymentMethod != null) 'paymentMethod': paymentMethod,
-      };
+      return await _firestore.runTransaction((transaction) async {
+        final txRef = _getTransactionsCollection(goalId).doc(transactionId);
+        final goalRef = _getGoalRef(goalId);
 
-      final response = await _dio.put(
-        '${ApiEndpoints.goalTransactions(goalId)}/$transactionId',
-        data: updateData,
-      );
+        final txSnapshot = await transaction.get(txRef);
+        if (!txSnapshot.exists) {
+          throw NotFoundException('Transaction not found');
+        }
 
-      final data = response.data;
-      Map<String, dynamic> transactionJson;
+        final oldData = txSnapshot.data()!;
+        final double oldAmount = (oldData['amount'] as num).toDouble();
+        final String oldType = oldData['type'] as String;
 
-      if (data is Map && data.containsKey('transaction')) {
-        transactionJson = data['transaction'] as Map<String, dynamic>;
-      } else if (data is Map) {
-        transactionJson = data as Map<String, dynamic>;
-      } else {
-        throw ServerException(
-          'Invalid response format',
-          statusCode: response.statusCode,
-        );
-      }
+        // Calculate balance adjustment needed
+        double adjustment = 0;
 
-      return TransactionModel.fromJson(transactionJson);
-    } on DioException catch (e) {
-      _handleDioError(e);
+        // Revert old effect
+        if (oldType == 'deposit') adjustment -= oldAmount;
+        if (oldType == 'withdrawal') adjustment += oldAmount;
+
+        // Apply new effect
+        final newAmount = amount ?? oldAmount;
+        final newType = type ?? oldType;
+
+        if (newType == 'deposit') adjustment += newAmount;
+        if (newType == 'withdrawal') adjustment -= newAmount;
+
+        final updateData = <String, dynamic>{
+          if (amount != null) 'amount': amount,
+          if (type != null) 'type': type,
+          if (date != null) 'date': date.toIso8601String(),
+          if (note != null) 'note': note,
+          if (category != null) 'category': category,
+          if (paymentMethod != null) 'paymentMethod': paymentMethod,
+        };
+
+        transaction.update(txRef, updateData);
+
+        if (adjustment != 0) {
+          transaction.update(goalRef, {
+            'currentAmount': FieldValue.increment(adjustment),
+            'updatedAt': DateTime.now().toIso8601String(),
+          });
+        }
+
+        final mergedData = Map<String, dynamic>.from(oldData)
+          ..addAll(updateData);
+        return TransactionModel.fromJson(mergedData);
+      });
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
@@ -160,81 +212,73 @@ class TransactionRemoteDataSource {
     String transactionId,
   ) async {
     try {
-      final response = await _dio.delete(
-        ApiEndpoints.deleteTransaction(goalId, transactionId),
-      );
+      return await _firestore.runTransaction((transaction) async {
+        final txRef = _getTransactionsCollection(goalId).doc(transactionId);
+        final goalRef = _getGoalRef(goalId);
 
-      final data = response.data;
+        final txSnapshot = await transaction.get(txRef);
+        if (!txSnapshot.exists) return null;
 
-      if (data is Map && data.containsKey('goal')) {
-        return data['goal'] as Map<String, dynamic>;
-      }
+        final txData = txSnapshot.data()!;
+        final double amount = (txData['amount'] as num).toDouble();
+        final String type = txData['type'] as String;
 
-      return null;
-    } on DioException catch (e) {
-      _handleDioError(e);
+        // Revert balance
+        double change = 0;
+        if (type == 'deposit') change = -amount;
+        if (type == 'withdrawal') change = amount;
+
+        transaction.delete(txRef);
+        transaction.update(goalRef, {
+          'currentAmount': FieldValue.increment(change),
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+
+        final goalSnapshot = await transaction.get(goalRef);
+        if (goalSnapshot.exists) {
+          final goalData = goalSnapshot.data()!;
+          final currentVal = (goalData['currentAmount'] as num).toDouble();
+          final updatedGoal = Map<String, dynamic>.from(goalData);
+          updatedGoal['currentAmount'] = currentVal + change;
+          return updatedGoal;
+        }
+        return null;
+      });
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
   /// Get transaction statistics for a goal
   Future<Map<String, dynamic>> getTransactionStats(String goalId) async {
     try {
-      final response = await _dio.get(
-        '${ApiEndpoints.goalTransactions(goalId)}/stats',
-      );
+      final transactions = await getGoalTransactions(goalId);
 
-      final data = response.data;
+      double totalDeposits = 0;
+      double totalWithdrawals = 0;
+      int depositCount = 0;
+      int withdrawalCount = 0;
 
-      if (data is Map && data.containsKey('stats')) {
-        return data['stats'] as Map<String, dynamic>;
-      } else if (data is Map) {
-        return data as Map<String, dynamic>;
-      } else {
-        return {};
-      }
-    } on DioException catch (e) {
-      _handleDioError(e);
-    }
-  }
-
-  /// Handle Dio errors and convert to custom exceptions
-  Never _handleDioError(DioException error) {
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        throw TimeoutException('Request timed out');
-
-      case DioExceptionType.badResponse:
-        final statusCode = error.response?.statusCode;
-        final message = error.response?.data?['message'] as String?;
-
-        switch (statusCode) {
-          case 401:
-            throw UnauthorizedException(message ?? 'Unauthorized');
-          case 403:
-            throw ForbiddenException(message ?? 'Forbidden');
-          case 404:
-            throw NotFoundException(message ?? 'Transaction not found');
-          case 409:
-            throw ConflictException(message ?? 'Conflict occurred');
-          case 422:
-            throw ValidationException(message ?? 'Validation failed');
-          default:
-            throw ServerException(
-              message ?? 'Server error',
-              statusCode: statusCode,
-            );
+      for (final transaction in transactions) {
+        if (transaction.type == 'deposit') {
+          totalDeposits += transaction.amount;
+          depositCount++;
+        } else if (transaction.type == 'withdrawal') {
+          totalWithdrawals += transaction.amount;
+          withdrawalCount++;
         }
+      }
 
-      case DioExceptionType.cancel:
-        throw NetworkException('Request was cancelled');
-
-      case DioExceptionType.connectionError:
-        throw NoInternetException();
-
-      default:
-        throw NetworkException(error.message ?? 'Unknown error');
+      return {
+        'totalDeposits': totalDeposits,
+        'totalWithdrawals': totalWithdrawals,
+        'depositCount': depositCount,
+        'withdrawalCount': withdrawalCount,
+        'netAmount': totalDeposits - totalWithdrawals,
+        'transactionCount': transactions.length,
+      };
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 }
