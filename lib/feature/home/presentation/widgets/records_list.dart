@@ -40,37 +40,6 @@ class RecordsList extends ConsumerWidget {
 
   const RecordsList({super.key, this.goal, this.records});
 
-  List<RecordItem> _sampleRecords() {
-    // Create a few sample records; in real app, pass actual data
-    return [
-      RecordItem(
-        date: DateTime.now().subtract(const Duration(days: 2)),
-        signedAmount: 2000,
-        note: 'Funds from investment',
-      ),
-      RecordItem(
-        date: DateTime.now().subtract(const Duration(days: 5)),
-        signedAmount: 500,
-        note: 'Transferred from paycheck',
-      ),
-      RecordItem(
-        date: DateTime.now().subtract(const Duration(days: 20)),
-        signedAmount: 250,
-        note: 'Freelance payment',
-      ),
-      RecordItem(
-        date: DateTime.now().subtract(const Duration(days: 30)),
-        signedAmount: -1500,
-        note: 'Car maintenance',
-      ),
-      RecordItem(
-        date: DateTime.now().subtract(const Duration(days: 40)),
-        signedAmount: 1000,
-        note: 'Weekend side gig earnings',
-      ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Use the typed transactions box
@@ -107,8 +76,7 @@ class RecordsList extends ConsumerWidget {
                 );
               }).toList();
 
-              final items =
-                  records ?? (parsed.isNotEmpty ? parsed : _sampleRecords());
+              final items = records ?? parsed;
               if (items.isEmpty) {
                 return Center(
                   child: Text(
@@ -241,6 +209,8 @@ class RecordsList extends ConsumerWidget {
                                     note: note,
                                   );
 
+                                  if (!context.mounted) return;
+
                                   // Refresh goals to update progress
                                   await ref
                                       .read(goalViewModelProvider.notifier)
@@ -349,6 +319,8 @@ class RecordsList extends ConsumerWidget {
                                     r.goalId ?? goal?.id ?? '',
                                     r.id!,
                                   );
+
+                                  if (!context.mounted) return;
 
                                   // Refresh goals to update progress
                                   await ref

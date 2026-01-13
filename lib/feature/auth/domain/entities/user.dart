@@ -4,8 +4,17 @@ class User {
   final String? email;
   final String? displayName;
   final String? photoUrl;
+  final String? phoneNumber;
+  final String? gender;
 
-  const User({required this.id, this.email, this.displayName, this.photoUrl});
+  const User({
+    required this.id,
+    this.email,
+    this.displayName,
+    this.photoUrl,
+    this.phoneNumber,
+    this.gender,
+  });
 
   @override
   bool operator ==(Object other) =>
@@ -15,14 +24,21 @@ class User {
           id == other.id &&
           email == other.email &&
           displayName == other.displayName &&
-          photoUrl == other.photoUrl;
+          photoUrl == other.photoUrl &&
+          phoneNumber == other.phoneNumber &&
+          gender == other.gender;
 
   @override
   int get hashCode =>
-      id.hashCode ^ email.hashCode ^ displayName.hashCode ^ photoUrl.hashCode;
+      id.hashCode ^
+      email.hashCode ^
+      displayName.hashCode ^
+      photoUrl.hashCode ^
+      phoneNumber.hashCode ^
+      gender.hashCode;
 
   @override
   String toString() {
-    return 'User{id: $id, email: $email, displayName: $displayName, photoUrl: $photoUrl}';
+    return 'User{id: $id, email: $email, displayName: $displayName, photoUrl: $photoUrl, phoneNumber: $phoneNumber, gender: $gender}';
   }
 }

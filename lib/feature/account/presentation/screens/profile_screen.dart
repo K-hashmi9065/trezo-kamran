@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
+import '../../../auth/data/models/user_model.dart';
 import '../provider/user_profile_viewmodel.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -25,6 +27,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   String? _selectedImagePath;
+  String? _selectedGender;
+  UserModel? _prevUser;
 
   @override
   void dispose() {
@@ -78,6 +82,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             phone: _phoneController.text.trim().isEmpty
                 ? null
                 : _phoneController.text.trim(),
+            gender: _selectedGender,
           );
     }
   }
@@ -148,17 +153,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildProfileForm(UserProfileLoaded state) {
     final user = state.user;
 
-    // Initialize controllers with user data
-    if (_nameController.text.isEmpty && user.displayName != null) {
-      _nameController.text = user.displayName!;
-    }
-    if (_emailController.text.isEmpty && user.email != null) {
-      _emailController.text = user.email!;
+    // Initialize/Update controllers when user data changes
+    if (user != _prevUser) {
+      _nameController.text = user.displayName ?? '';
+      _emailController.text = user.email ?? '';
+      _phoneController.text = user.phoneNumber ?? '';
+      if (_selectedGender == null || user.gender != null) {
+        _selectedGender = user.gender;
+      }
+      _prevUser = user;
     }
 
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: () async {
+          _prevUser = null; // Force update on next build
           await ref.read(userProfileViewModelProvider.notifier).refresh();
         },
         child: SingleChildScrollView(
@@ -184,7 +193,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           backgroundImage: _selectedImagePath != null
                               ? FileImage(File(_selectedImagePath!))
                               : user.photoUrl != null
-                              ? NetworkImage(user.photoUrl!)
+                              ? CachedNetworkImageProvider(
+                                      user.photoUrl!,
+                                      errorListener: (_) {},
+                                    )
+                                    as ImageProvider
                               : null,
                           child:
                               _selectedImagePath == null &&
@@ -230,6 +243,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     label: 'Full Name',
                     hint: 'Enter your full name',
                     controller: _nameController,
+                    prefixIcon: Icon(
+                      Icons.person_outline,
+                      color: context.textSecondaryClr,
+                    ),
                   ),
 
                   // Email
@@ -237,6 +254,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     label: 'Email',
                     hint: 'Enter your email',
                     controller: _emailController,
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: context.textSecondaryClr,
+                    ),
                   ),
 
                   // Phone Number
@@ -244,6 +265,77 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     label: 'Phone Number',
                     hint: 'Enter your phone number',
                     controller: _phoneController,
+                    prefixIcon: Icon(
+                      Icons.phone_outlined,
+                      color: context.textSecondaryClr,
+                    ),
+                  ),
+
+                  SizedBox(height: 20.h),
+
+                  // Gender
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Gender',
+                        style: AppFonts.sb18(color: context.textPrimaryClr),
+                      ),
+                      SizedBox(height: 8.h),
+                      DropdownButtonFormField<String>(
+                        initialValue:
+                            [
+                              'Male',
+                              'Female',
+                              'Other',
+                            ].contains(_selectedGender)
+                            ? _selectedGender
+                            : null,
+                        decoration: InputDecoration(
+                          hintText: 'Select Gender',
+                          hintStyle: AppFonts.sb17(
+                            color: context.textSecondaryClr,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.wc_outlined,
+                            color: context.textSecondaryClr,
+                          ),
+                          isDense: true,
+                          filled: true,
+                          fillColor: context.boxClr,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 14.w,
+                            vertical: 16.h,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                            borderSide: const BorderSide(
+                              color: Colors.transparent,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                            borderSide: const BorderSide(
+                              color: Colors.transparent,
+                            ),
+                          ),
+                        ),
+                        style: AppFonts.sb17(color: context.textPrimaryClr),
+                        items: ['Male', 'Female', 'Other']
+                            .map(
+                              (gender) => DropdownMenuItem(
+                                value: gender,
+                                child: Text(gender),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedGender = value;
+                          });
+                        },
+                      ),
+                    ],
                   ),
 
                   SizedBox(height: 20.h),

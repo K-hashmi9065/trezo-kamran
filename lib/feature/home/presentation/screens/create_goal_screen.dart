@@ -20,7 +20,9 @@ import '../viewmodels/goal_viewmodel.dart';
 import '../viewmodels/goal_state.dart';
 
 class CreateGoalScreen extends ConsumerStatefulWidget {
-  const CreateGoalScreen({super.key});
+  final Goal? initialGoal;
+
+  const CreateGoalScreen({super.key, this.initialGoal});
 
   @override
   ConsumerState<CreateGoalScreen> createState() => _CreateGoalScreenState();
@@ -50,6 +52,35 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialGoal != null) {
+      final goal = widget.initialGoal!;
+      _titleController.text = goal.title;
+      _targetAmountController.text = goal.targetAmount.toStringAsFixed(0);
+      _noteController.text = goal.note ?? '';
+      _targetDate = goal.targetDate;
+      _selectedCurrency = goal.currency;
+      if (goal.color != null) {
+        _selectedColor = goal.color!.toARGB32();
+      }
+      _selectedIcon = goal.icon;
+
+      if (goal.coverImagePath != null) {
+        if (goal.coverImagePath!.startsWith('data:')) {
+          try {
+            _selectedCoverBytes = base64Decode(
+              goal.coverImagePath!.split(',').last,
+            );
+          } catch (_) {}
+        } else {
+          _selectedCoverPath = goal.coverImagePath;
+        }
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _targetAmountController.dispose();
@@ -60,7 +91,7 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 30)),
+      initialDate: _targetDate ?? DateTime.now().add(const Duration(days: 30)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 3650)), // 10 years
       builder: (context, child) {
@@ -90,17 +121,27 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
       return;
     }
 
+    // Determine ID: keep existing if editing, else generate new
+    final goalId = widget.initialGoal?.id ?? const Uuid().v4();
+    // Keep existing immutable fields if editing
+    final createdAt = widget.initialGoal?.createdAt ?? DateTime.now();
+    final currentAmount = widget.initialGoal?.currentAmount ?? 0.0;
+    final isCompleted = widget.initialGoal?.isCompleted ?? false;
+    final isArchived = widget.initialGoal?.isArchived ?? false;
+
     final goal = Goal(
-      id: const Uuid().v4(),
+      id: goalId,
       title: _titleController.text.trim(),
       targetAmount: double.parse(_targetAmountController.text),
-      currentAmount: 0,
-      startDate: DateTime.now(),
-      targetDate: _targetDate, // Optional now
-      category: 'General', // You can make this dynamic too
+      currentAmount: currentAmount,
+      startDate:
+          createdAt, // Usually start date is created date, keep consistent
+      targetDate: _targetDate,
+      category: 'General',
       currency: _selectedCurrency,
-      isCompleted: false,
-      createdAt: DateTime.now(),
+      isCompleted: isCompleted,
+      isArchived: isArchived,
+      createdAt: createdAt,
       updatedAt: DateTime.now(),
       coverImagePath: _selectedCoverBytes != null
           ? 'data:image/png;base64,${base64Encode(_selectedCoverBytes!)}'
@@ -112,16 +153,24 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
       icon: _selectedIcon,
     );
 
-    final success = await ref
-        .read(goalViewModelProvider.notifier)
-        .createGoal(goal);
+    bool success;
+    if (widget.initialGoal != null) {
+      // Update existing
+      success = await ref.read(goalViewModelProvider.notifier).updateGoal(goal);
+    } else {
+      // Create new
+      success = await ref.read(goalViewModelProvider.notifier).createGoal(goal);
+    }
+
     if (!mounted) return;
 
     if (success) {
       // ignore: use_build_context_synchronously
       AppSnackBar.showSuccess(
         context,
-        message: 'Your goal "${goal.title}" has been created!',
+        message: widget.initialGoal != null
+            ? 'Goal updated successfully!'
+            : 'Your goal "${goal.title}" has been created!',
         title: 'Success',
       );
       if (!mounted) return;

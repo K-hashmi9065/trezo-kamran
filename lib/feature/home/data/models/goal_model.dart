@@ -52,6 +52,9 @@ class GoalModel extends Goal {
   @HiveField(14)
   final String? hiveIcon;
 
+  @HiveField(15)
+  final bool? hiveIsArchived; // Make nullable for migration
+
   GoalModel({
     required this.hiveId,
     required this.hiveTitle,
@@ -62,6 +65,7 @@ class GoalModel extends Goal {
     required this.hiveCategory,
     this.hiveCurrency = 'INR',
     this.hiveIsCompleted = false,
+    this.hiveIsArchived = false,
     required this.hiveCreatedAt,
     required this.hiveUpdatedAt,
     this.hiveCoverImagePath,
@@ -78,6 +82,8 @@ class GoalModel extends Goal {
          category: hiveCategory,
          currency: hiveCurrency,
          isCompleted: hiveIsCompleted,
+         // Handle null when reading from Hive
+         isArchived: hiveIsArchived ?? false,
          createdAt: hiveCreatedAt,
          updatedAt: hiveUpdatedAt,
          coverImagePath: hiveCoverImagePath,
@@ -98,6 +104,7 @@ class GoalModel extends Goal {
       hiveCategory: goal.category,
       hiveCurrency: goal.currency,
       hiveIsCompleted: goal.isCompleted,
+      hiveIsArchived: goal.isArchived,
       hiveCreatedAt: goal.createdAt,
       hiveUpdatedAt: goal.updatedAt,
       hiveCoverImagePath: goal.coverImagePath,
@@ -119,6 +126,7 @@ class GoalModel extends Goal {
       'category': hiveCategory,
       'currency': hiveCurrency,
       'isCompleted': hiveIsCompleted,
+      'isArchived': hiveIsArchived,
       'createdAt': hiveCreatedAt.toIso8601String(),
       'updatedAt': hiveUpdatedAt.toIso8601String(),
       'coverImagePath': hiveCoverImagePath,
@@ -142,6 +150,7 @@ class GoalModel extends Goal {
       hiveCategory: json['category'] as String,
       hiveCurrency: json['currency'] as String? ?? 'INR',
       hiveIsCompleted: json['isCompleted'] as bool? ?? false,
+      hiveIsArchived: json['isArchived'] as bool? ?? false,
       hiveCreatedAt: DateTime.parse(json['createdAt'] as String),
       hiveUpdatedAt: DateTime.parse(json['updatedAt'] as String),
       hiveCoverImagePath: json['coverImagePath'] as String?,
@@ -163,6 +172,7 @@ class GoalModel extends Goal {
       category: hiveCategory,
       currency: hiveCurrency,
       isCompleted: hiveIsCompleted,
+      isArchived: hiveIsArchived ?? false,
       createdAt: hiveCreatedAt,
       updatedAt: hiveUpdatedAt,
       coverImagePath: hiveCoverImagePath,
@@ -184,6 +194,7 @@ class GoalModel extends Goal {
     String? category,
     String? currency,
     bool? isCompleted,
+    bool? isArchived,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? coverImagePath,
@@ -201,6 +212,7 @@ class GoalModel extends Goal {
       hiveCategory: category ?? hiveCategory,
       hiveCurrency: currency ?? hiveCurrency,
       hiveIsCompleted: isCompleted ?? hiveIsCompleted,
+      hiveIsArchived: isArchived ?? hiveIsArchived,
       hiveCreatedAt: createdAt ?? hiveCreatedAt,
       hiveUpdatedAt: updatedAt ?? hiveUpdatedAt,
       hiveCoverImagePath: coverImagePath ?? hiveCoverImagePath,

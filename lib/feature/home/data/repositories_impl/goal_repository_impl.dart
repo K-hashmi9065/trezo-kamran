@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:logger/logger.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/network_checker.dart';
@@ -8,12 +9,6 @@ import '../datasources/goal_remote_data_source.dart';
 import '../models/goal_model.dart';
 
 /// Enhanced repository implementation with offline-first strategy
-///
-/// Strategy:
-/// - Always read from local cache first (fast access)
-/// - Fetch from remote in background when online
-/// - Update local cache with fresh data
-/// - Queue operations when offline for later sync
 class GoalRepositoryImpl implements GoalRepository {
   final GoalLocalDataSource _localDataSource;
   final GoalRemoteDataSource _remoteDataSource;
@@ -27,13 +22,30 @@ class GoalRepositoryImpl implements GoalRepository {
   );
 
   @override
+  Future<bool> hasAnyGoals() async {
+    // Try remote first if online
+    final isConnected = await _networkChecker.isConnected;
+    if (isConnected) {
+      try {
+        await _remoteDataSource.ensureUserDocumentExists();
+        return await _remoteDataSource.hasAnyGoals();
+      } catch (e) {
+        _logger.w('Failed to check remote goals: $e');
+      }
+    }
+    // Fallback to local
+    final localGoals = await _localDataSource.getAllGoals();
+    return localGoals.isNotEmpty;
+  }
+
+  @override
   Future<List<Goal>> getAllGoals() async {
     // Try to fetch from remote if online
     final isConnected = await _networkChecker.isConnected;
 
     if (isConnected) {
       try {
-        _logger.i('Fetching goals from remote API');
+        _logger.i('Fetching goals from Firebase');
 
         // Ensure user document exists (creates 'users' collection if needed)
         await _remoteDataSource.ensureUserDocumentExists();
@@ -62,7 +74,7 @@ class GoalRepositoryImpl implements GoalRepository {
       } on NetworkException catch (e) {
         _logger.w('Network error while fetching goals: $e');
       } on ServerException catch (e) {
-        _logger.w('Server error while fetching goals: $e');
+        _logger.w('Firebase error while fetching goals: $e');
       } catch (e) {
         _logger.e('Unexpected error while fetching goals: $e');
       }
@@ -81,7 +93,7 @@ class GoalRepositoryImpl implements GoalRepository {
 
     if (isConnected) {
       try {
-        _logger.i('Fetching goal $id from remote API');
+        _logger.i('Fetching goal $id from Firebase');
         final remoteGoal = await _remoteDataSource.getGoalById(id);
 
         // Update local cache
@@ -90,13 +102,10 @@ class GoalRepositoryImpl implements GoalRepository {
         return remoteGoal.toEntity();
       } on NotFoundException catch (e) {
         _logger.w('Goal $id not found remotely: $e');
-        // Fall through to local data
       } on NetworkException catch (e) {
         _logger.w('Network error while fetching goal: $e');
-        // Fall through to local data
       } catch (e) {
         _logger.e('Unexpected error while fetching goal: $e');
-        // Fall through to local data
       }
     }
 
@@ -108,7 +117,7 @@ class GoalRepositoryImpl implements GoalRepository {
 
   @override
   Future<void> createGoal(Goal goal) async {
-    final goalModel = GoalModel.fromEntity(goal);
+    var goalModel = GoalModel.fromEntity(goal);
 
     // Always save locally first
     _logger.i('Creating goal locally: ${goal.title}');
@@ -116,10 +125,31 @@ class GoalRepositoryImpl implements GoalRepository {
 
     // Sync to remote (Firestore handles offline queueing)
     try {
-      _logger.i('Syncing goal to remote API: ${goal.title}');
+      _logger.i('Syncing goal to Firebase: ${goal.title}');
 
       // Ensure user document exists (creates 'users' collection if needed)
       await _remoteDataSource.ensureUserDocumentExists();
+
+      // Check if cover image needs upload
+      if (goalModel.coverImagePath != null &&
+          !goalModel.coverImagePath!.startsWith('http') &&
+          !goalModel.coverImagePath!.startsWith('data:')) {
+        try {
+          final file = File(goalModel.coverImagePath!);
+          if (file.existsSync()) {
+            _logger.i('Uploading goal cover image...');
+            final url = await _remoteDataSource.uploadGoalImage(file);
+            goalModel = goalModel.copyWith(coverImagePath: url);
+
+            // Update local with the new URL so we don't upload again
+            await _localDataSource.updateGoal(goalModel);
+          }
+        } catch (e) {
+          _logger.w(
+            'Failed to upload goal image, continuing with local path: $e',
+          );
+        }
+      }
 
       final remoteGoal = await _remoteDataSource.createGoal(goalModel);
 
@@ -133,7 +163,7 @@ class GoalRepositoryImpl implements GoalRepository {
 
   @override
   Future<void> updateGoal(Goal goal) async {
-    final goalModel = GoalModel.fromEntity(goal);
+    var goalModel = GoalModel.fromEntity(goal);
 
     // Always update locally first
     _logger.i('Updating goal locally: ${goal.title}');
@@ -141,10 +171,31 @@ class GoalRepositoryImpl implements GoalRepository {
 
     // Sync to remote
     try {
-      _logger.i('Syncing goal update to remote API: ${goal.title}');
+      _logger.i('Syncing goal update to Firebase: ${goal.title}');
 
       // Ensure user document exists
       await _remoteDataSource.ensureUserDocumentExists();
+
+      // Check if cover image needs upload
+      if (goalModel.coverImagePath != null &&
+          !goalModel.coverImagePath!.startsWith('http') &&
+          !goalModel.coverImagePath!.startsWith('data:')) {
+        try {
+          final file = File(goalModel.coverImagePath!);
+          if (file.existsSync()) {
+            _logger.i('Uploading goal cover image...');
+            final url = await _remoteDataSource.uploadGoalImage(file);
+            goalModel = goalModel.copyWith(coverImagePath: url);
+
+            // Update local with the new URL so we don't upload again
+            await _localDataSource.updateGoal(goalModel);
+          }
+        } catch (e) {
+          _logger.w(
+            'Failed to upload goal image, continuing with local path: $e',
+          );
+        }
+      }
 
       final remoteGoal = await _remoteDataSource.updateGoal(goalModel);
 

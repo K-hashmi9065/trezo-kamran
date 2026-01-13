@@ -119,12 +119,13 @@ class GoalViewModel extends Notifier<GoalState> {
     }
   }
 
-  /// Add a transaction record using the TransactionRepository
-  Future<void> addTransactionRecord(
+  /// Add a transaction record and refresh goals
+  Future<bool> addTransactionRecord(
     String goalId,
     double amount,
     String? note,
   ) async {
+    state = const GoalLoading();
     try {
       await _transactionRepository.addTransaction(
         goalId: goalId,
@@ -133,9 +134,11 @@ class GoalViewModel extends Notifier<GoalState> {
         date: DateTime.now(),
         note: note,
       );
-    } catch (_) {
-      // Non-fatal: recording a transaction should not crash the app.
-      // Ideally log this error using a logger.
+      await loadGoals();
+      return true;
+    } catch (e) {
+      state = GoalError('Failed to add transaction: $e');
+      return false;
     }
   }
 

@@ -25,7 +25,7 @@ class UserProfileRepository {
 
     if (isConnected) {
       try {
-        _logger.i('Fetching user profile from remote API');
+        _logger.i('Fetching user profile from Firebase');
         final remoteUser = await _remoteDataSource.getUserProfile();
 
         // Update local cache
@@ -35,7 +35,7 @@ class UserProfileRepository {
       } on NetworkException catch (e) {
         _logger.w('Network error while fetching profile: $e');
       } on ServerException catch (e) {
-        _logger.w('Server error while fetching profile: $e');
+        _logger.w('Firebase error while fetching profile: $e');
       } catch (e) {
         _logger.e('Unexpected error while fetching profile: $e');
       }
@@ -52,6 +52,7 @@ class UserProfileRepository {
     String? email,
     String? phone,
     String? photoUrl,
+    String? gender,
   }) async {
     final isConnected = await _networkChecker.isConnected;
 
@@ -61,12 +62,13 @@ class UserProfileRepository {
     }
 
     try {
-      _logger.i('Updating user profile on remote API');
+      _logger.i('Updating user profile on Firebase');
       final updatedUser = await _remoteDataSource.updateUserProfile(
         name: name,
         email: email,
         phone: phone,
         photoUrl: photoUrl,
+        gender: gender,
       );
 
       // Update local cache
@@ -89,7 +91,7 @@ class UserProfileRepository {
     }
 
     try {
-      _logger.i('Uploading avatar to remote API');
+      _logger.i('Uploading avatar...');
       final avatarUrl = await _remoteDataSource.uploadAvatar(filePath);
 
       // Update local cache with new avatar URL
@@ -121,7 +123,7 @@ class UserProfileRepository {
     }
 
     try {
-      _logger.i('Fetching user stats from remote API');
+      _logger.i('Fetching user stats from Firebase');
       return await _remoteDataSource.getUserStats();
     } catch (e) {
       _logger.e('Error fetching user stats: $e');
@@ -139,7 +141,7 @@ class UserProfileRepository {
     }
 
     try {
-      _logger.i('Deleting user account on remote API');
+      _logger.i('Deleting user account on Firebase');
       await _remoteDataSource.deleteAccount();
 
       // Clear all local data
@@ -157,7 +159,7 @@ class UserProfileRepository {
 
     if (isConnected) {
       try {
-        _logger.i('Fetching user preferences from remote API');
+        _logger.i('Fetching user preferences from Firebase');
         final remotePrefs = await _remoteDataSource.getUserPreferences();
 
         // Update local cache

@@ -65,9 +65,148 @@ class _GoalDetailScreenState extends ConsumerState<GoalDetailScreen>
         ),
         centerTitle: true,
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: Icon(Icons.more_vert, color: context.textPrimaryClr),
-            onPressed: () {},
+            onSelected: (value) async {
+              if (value == 'edit') {
+                // Navigate to CreateGoalScreen with the current goal for editing relative to this context
+                context.push(RouteNames.createGoalScreen, extra: currentGoal);
+              } else if (value == 'archive') {
+                // Toggle archive status
+                final updatedGoal = currentGoal.copyWith(
+                  isArchived: !currentGoal.isArchived,
+                  updatedAt: DateTime.now(),
+                );
+                await ref
+                    .read(goalViewModelProvider.notifier)
+                    .updateGoal(updatedGoal);
+
+                if (context.mounted) {
+                  setState(() {
+                    _localGoal = updatedGoal;
+                  });
+                  AppSnackBar.showSuccess(
+                    context,
+                    message: updatedGoal.isArchived
+                        ? "Goal archived"
+                        : "Goal unarchived",
+                    title: "Success",
+                  );
+                }
+              } else if (value == 'delete') {
+                // Confirm Delete using Bottom Sheet
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: context.backgroundClr,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24.r),
+                    ),
+                  ),
+                  builder: (context) {
+                    return Padding(
+                      padding: EdgeInsets.all(24.w),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Delete Goal',
+                            style: AppFonts.sb24(color: context.textPrimaryClr),
+                          ),
+                          SizedBox(height: 12.h),
+                          Text(
+                            'Are you sure you want to delete this goal? This action cannot be undone.',
+                            textAlign: TextAlign.center,
+                            style: AppFonts.m16(
+                              color: context.textSecondaryClr,
+                            ),
+                          ),
+                          SizedBox(height: 32.h),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: AppLargeElevatedButton(
+                                  text: 'Cancel',
+                                  backgroundColor: AppColors.lightBlue,
+                                  textColor: AppColors.primaryBlue,
+                                  onPressed: () {
+                                    context.pop();
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: 16.w),
+                              Expanded(
+                                child: AppLargeElevatedButton(
+                                  text: 'Delete',
+                                  backgroundColor: AppColors.error,
+                                  textColor: AppColors.background,
+                                  onPressed: () async {
+                                    context.pop(); // Close bottom sheet
+
+                                    await ref
+                                        .read(goalViewModelProvider.notifier)
+                                        .deleteGoal(widget.goal.id);
+
+                                    if (context.mounted) {
+                                      AppSnackBar.showSuccess(
+                                        context,
+                                        message: "Goal deleted successfully",
+                                        title: "Deleted",
+                                      );
+                                      context.pop(); // Go back to goal list
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 16.h),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              return [
+                const PopupMenuItem<String>(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, size: 20),
+                      SizedBox(width: 8),
+                      Text('Edit'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'archive',
+                  child: Row(
+                    children: [
+                      Icon(
+                        currentGoal.isArchived
+                            ? Icons.unarchive
+                            : Icons.archive,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(currentGoal.isArchived ? 'Unarchive' : 'Archive'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, size: 20, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Delete', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
         ],
       ),
@@ -409,11 +548,9 @@ class _GoalDetailScreenState extends ConsumerState<GoalDetailScreen>
 
       // Apply to the goal via viewmodel. Withdraw uses negative amount.
       final appliedAmount = isWithdraw ? -amount : amount;
-      await ref
-          .read(goalViewModelProvider.notifier)
-          .updateProgress(widget.goal.id, appliedAmount);
 
-      // Persist a transaction record for this change
+      // Persist a transaction record for this change (this also updates the goal progress/amount on server)
+      // We rely on this single source of truth to avoid double-counting.
       await ref
           .read(goalViewModelProvider.notifier)
           .addTransactionRecord(widget.goal.id, appliedAmount, note);

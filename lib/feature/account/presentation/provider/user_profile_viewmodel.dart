@@ -26,9 +26,9 @@ class UserProfileError extends UserProfileState {
   const UserProfileError(this.message);
 }
 
-class UserProfileSuccess extends UserProfileState {
+class UserProfileSuccess extends UserProfileLoaded {
   final String message;
-  const UserProfileSuccess(this.message);
+  const UserProfileSuccess(super.user, this.message);
 }
 
 /// User profile ViewModel
@@ -63,6 +63,7 @@ class UserProfileViewModel extends Notifier<UserProfileState> {
     String? name,
     String? email,
     String? phone,
+    String? gender,
   }) async {
     state = const UserProfileLoading();
     try {
@@ -71,13 +72,17 @@ class UserProfileViewModel extends Notifier<UserProfileState> {
         name: name,
         email: email,
         phone: phone,
+        gender: gender,
       );
 
       state = UserProfileLoaded(updatedUser);
       // Show success message temporarily
       Future.delayed(const Duration(seconds: 2), () {
         if (state is! UserProfileLoaded) return;
-        state = const UserProfileSuccess('Profile updated successfully!');
+        state = UserProfileSuccess(
+          updatedUser,
+          'Profile updated successfully!',
+        );
       });
     } on NoInternetException {
       state = const UserProfileError('Cannot update profile while offline');
@@ -95,8 +100,14 @@ class UserProfileViewModel extends Notifier<UserProfileState> {
       // Reload profile to get updated avatar
       await loadUserProfile();
 
-      state = const UserProfileSuccess('Avatar uploaded successfully!');
-      Future.delayed(const Duration(seconds: 2), loadUserProfile);
+      if (state is UserProfileLoaded) {
+        final currentUser = (state as UserProfileLoaded).user;
+        state = UserProfileSuccess(
+          currentUser,
+          'Avatar uploaded successfully!',
+        );
+        Future.delayed(const Duration(seconds: 2), loadUserProfile);
+      }
     } on NoInternetException {
       state = const UserProfileError('Cannot upload avatar while offline');
     } catch (e) {

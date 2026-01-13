@@ -9,10 +9,13 @@ import 'package:trezo_saving_ai_app/feature/account/presentation/widgets/setting
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/fonts.dart';
+import '../../../../../core/l10n/app_localizations.dart';
 import '../../../../../core/router/route_names.dart';
-import '../../../../../core/utils/app_large_elevated_button.dart';
 import '../../../../../core/theme/theme_state.dart';
 import '../../../../../core/theme/theme_viewmodel.dart';
+import '../../../models/language_model.dart';
+import '../../provider/user_appearance_viewmodel.dart';
+import 'app_language.dart';
 
 class AppAppearanceScreen extends ConsumerStatefulWidget {
   const AppAppearanceScreen({super.key});
@@ -23,14 +26,8 @@ class AppAppearanceScreen extends ConsumerStatefulWidget {
 }
 
 class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
-  // Temporary selected theme for the bottom sheet
-  AppThemeMode? _tempSelectedTheme;
-
   // bottom sheet for theme
   void showThemeBottomSheet(BuildContext context) {
-    final currentTheme = ref.read(themeViewModelProvider).themeMode;
-    _tempSelectedTheme = currentTheme;
-
     showModalBottomSheet(
       context: context,
       backgroundColor: context.whiteClr,
@@ -38,8 +35,12 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
       ),
       builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final themeState = ref.watch(themeViewModelProvider);
+            final currentTheme = themeState.themeMode;
+            final l10n = AppLocalizations.of(context)!;
+
             return Padding(
               padding: EdgeInsets.all(20.w),
               child: Column(
@@ -48,7 +49,7 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
                 children: [
                   Center(
                     child: Text(
-                      "Choose Theme",
+                      l10n.chooseTheme,
                       style: AppFonts.sb24(color: context.textPrimaryClr),
                     ),
                   ),
@@ -60,15 +61,18 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
                   RadioListTile<AppThemeMode>(
                     value: AppThemeMode.system,
                     // ignore: deprecated_member_use
-                    groupValue: _tempSelectedTheme,
+                    groupValue: currentTheme,
                     // ignore: deprecated_member_use
                     onChanged: (mode) {
-                      setModalState(() {
-                        _tempSelectedTheme = mode;
-                      });
+                      if (mode != null) {
+                        ref
+                            .read(themeViewModelProvider.notifier)
+                            .changeTheme(mode);
+                        context.pop();
+                      }
                     },
                     title: Text(
-                      "System Default",
+                      l10n.systemDefault,
                       style: AppFonts.sb18(color: context.textPrimaryClr),
                     ),
                     activeColor: AppColors.primaryBlue,
@@ -79,15 +83,18 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
                   RadioListTile<AppThemeMode>(
                     value: AppThemeMode.light,
                     // ignore: deprecated_member_use
-                    groupValue: _tempSelectedTheme,
+                    groupValue: currentTheme,
                     // ignore: deprecated_member_use
                     onChanged: (mode) {
-                      setModalState(() {
-                        _tempSelectedTheme = mode;
-                      });
+                      if (mode != null) {
+                        ref
+                            .read(themeViewModelProvider.notifier)
+                            .changeTheme(mode);
+                        context.pop();
+                      }
                     },
                     title: Text(
-                      "Light",
+                      l10n.light,
                       style: AppFonts.sb18(color: context.textPrimaryClr),
                     ),
                     activeColor: AppColors.primaryBlue,
@@ -98,15 +105,18 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
                   RadioListTile<AppThemeMode>(
                     value: AppThemeMode.dark,
                     // ignore: deprecated_member_use
-                    groupValue: _tempSelectedTheme,
+                    groupValue: currentTheme,
                     // ignore: deprecated_member_use
                     onChanged: (mode) {
-                      setModalState(() {
-                        _tempSelectedTheme = mode;
-                      });
+                      if (mode != null) {
+                        ref
+                            .read(themeViewModelProvider.notifier)
+                            .changeTheme(mode);
+                        context.pop();
+                      }
                     },
                     title: Text(
-                      "Dark",
+                      l10n.dark,
                       style: AppFonts.sb18(color: context.textPrimaryClr),
                     ),
                     activeColor: AppColors.primaryBlue,
@@ -114,36 +124,6 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
                   ),
 
                   SizedBox(height: 24.h),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppLargeElevatedButton(
-                          text: "Cancel",
-                          backgroundColor: AppColors.lightBlue,
-                          textColor: AppColors.primaryBlue,
-                          onPressed: () => context.pop(),
-                        ),
-                      ),
-
-                      SizedBox(width: 12.w),
-
-                      Expanded(
-                        child: AppLargeElevatedButton(
-                          text: "Save",
-                          onPressed: () {
-                            // Save theme here
-                            if (_tempSelectedTheme != null) {
-                              ref
-                                  .read(themeViewModelProvider.notifier)
-                                  .changeTheme(_tempSelectedTheme!);
-                            }
-                            context.pop();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             );
@@ -157,6 +137,7 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
   Widget build(BuildContext context) {
     final themeState = ref.watch(themeViewModelProvider);
     final currentThemeMode = themeState.themeMode;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: context.backgroundClr,
@@ -165,7 +146,7 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
         backgroundColor: context.backgroundClr,
         automaticallyImplyLeading: false,
         title: Text(
-          'App Appearance',
+          l10n.appAppearance,
           style: AppFonts.sb26(color: context.textPrimaryClr),
         ),
         centerTitle: true,
@@ -199,15 +180,27 @@ class _AppAppearanceScreenState extends ConsumerState<AppAppearanceScreen> {
                       children: [
                         SizedBox(height: 5.h),
                         SettingsTile(
-                          title: "Theme",
+                          title: l10n.theme,
                           rowSubtitle: currentThemeMode.displayName,
                           onTap: () {
                             showThemeBottomSheet(context);
                           },
                         ),
                         SettingsTile(
-                          title: "App Language",
-                          rowSubtitle: "English",
+                          title: l10n.appLanguage,
+                          rowSubtitle: AppLanguageScreen.languages
+                              .firstWhere(
+                                (l) =>
+                                    l.code ==
+                                    ref
+                                        .watch(userAppearanceViewModelProvider)
+                                        .language,
+                                orElse: () => const AppLanguage(
+                                  name: "English",
+                                  code: "en",
+                                ),
+                              )
+                              .name,
                           onTap: () {
                             context.push(RouteNames.appLanguageScreen);
                           },

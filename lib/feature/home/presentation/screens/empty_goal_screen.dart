@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
+import 'dart:io' show File;
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../account/presentation/provider/user_profile_viewmodel.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
 import '../../../../core/router/route_names.dart';
@@ -65,13 +68,46 @@ class EmptyGoalScreen extends ConsumerWidget {
             onTap: () {
               context.push(RouteNames.accountScreen);
             },
-            child: CircleAvatar(
-              backgroundColor: AppColors.lightBlue,
-              child: Icon(
-                Icons.person,
-                color: AppColors.primaryBlue,
-                size: 20.sp,
-              ),
+            child: Consumer(
+              builder: (context, ref, _) {
+                final userState = ref.watch(userProfileViewModelProvider);
+                ImageProvider? backgroundImage;
+
+                if (userState is UserProfileLoaded &&
+                    userState.user.photoUrl != null &&
+                    userState.user.photoUrl!.isNotEmpty) {
+                  final url = userState.user.photoUrl!;
+                  if (url.startsWith('http') || url.startsWith('https')) {
+                    backgroundImage = CachedNetworkImageProvider(
+                      url,
+                      errorListener: (_) {
+                        // Handle error or evict if needed
+                      },
+                    );
+                  } else {
+                    // Handle local file path
+                    try {
+                      final file = File(url);
+                      if (file.existsSync()) {
+                        backgroundImage = FileImage(file);
+                      }
+                    } catch (_) {}
+                  }
+                }
+
+                return CircleAvatar(
+                  backgroundColor: AppColors.lightBlue,
+                  backgroundImage: backgroundImage,
+                  radius: 20.r,
+                  child: backgroundImage == null
+                      ? Icon(
+                          Icons.person,
+                          color: AppColors.primaryBlue,
+                          size: 22.sp,
+                        )
+                      : null,
+                );
+              },
             ),
           ),
         ),

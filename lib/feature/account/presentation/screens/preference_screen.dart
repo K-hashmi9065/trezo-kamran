@@ -9,6 +9,11 @@ import 'package:trezo_saving_ai_app/feature/account/presentation/widgets/setting
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
+import '../../../../core/router/route_names.dart';
+import '../provider/user_appearance_viewmodel.dart';
+import '../../../../../core/theme/theme_state.dart';
+import 'app_appearance/app_language.dart';
+import '../../models/language_model.dart';
 
 class PreferenceScreen extends ConsumerWidget {
   const PreferenceScreen({super.key});
@@ -71,11 +76,25 @@ class PreferenceScreen extends ConsumerWidget {
                     ),
                     child: Column(
                       children: [
-                        SizedBox(height: 5.h),
                         SettingsTile(
-                          title: "Default Currency",
-                          rowSubtitle: "INR",
-                          onTap: () {},
+                          title: "Theme",
+                          rowSubtitle: AppThemeMode.fromString(
+                            ref
+                                .watch(userAppearanceViewModelProvider)
+                                .themeMode,
+                          ).displayName,
+                          onTap: () {
+                            context.pushNamed(RouteNames.appAppearanceScreen);
+                          },
+                        ),
+                        SettingsTile(
+                          title: "App Language",
+                          rowSubtitle: _getLanguageName(
+                            ref.watch(userAppearanceViewModelProvider).language,
+                          ),
+                          onTap: () {
+                            context.push(RouteNames.appLanguageScreen);
+                          },
                         ),
                         SettingsTile(
                           title: "First Day of Week",
@@ -115,5 +134,14 @@ class PreferenceScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _getLanguageName(String code) {
+    return AppLanguageScreen.languages
+        .firstWhere(
+          (l) => l.code == code,
+          orElse: () => AppLanguage(name: code, code: code),
+        )
+        .name;
   }
 }

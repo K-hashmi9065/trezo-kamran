@@ -2,26 +2,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
+
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:trezo_saving_ai_app/core/utils/app_large_elevated_button.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../widgets/settings_tile.dart';
 import '../widgets/switch_tile.dart';
-
-final chargingReminderProvider = StateProvider<bool>((ref) => false);
-final wakeUpMoodProvider = StateProvider<bool>((ref) => false);
+import '../provider/user_security_viewmodel.dart';
 
 class AccountSecurityScreen extends ConsumerWidget {
   const AccountSecurityScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Read Riverpod states
-    final isChargingReminderEnabled = ref.watch(chargingReminderProvider);
+    final securityState = ref.watch(userSecurityViewModelProvider);
 
     return Scaffold(
       backgroundColor: context.backgroundClr,
@@ -65,34 +63,38 @@ class AccountSecurityScreen extends ConsumerWidget {
                         SizedBox(height: 15.h),
                         SwitchTile(
                           title: "Biometric ID",
-                          value: isChargingReminderEnabled,
+                          value: securityState.isBiometricIdEnabled,
                           onChanged: (bool newValue) {
-                            ref.read(chargingReminderProvider.notifier).state =
-                                newValue;
+                            ref
+                                .read(userSecurityViewModelProvider.notifier)
+                                .toggleBiometricId(newValue);
                           },
                         ),
                         SwitchTile(
                           title: "Face ID",
-                          value: isChargingReminderEnabled,
+                          value: securityState.isFaceIdEnabled,
                           onChanged: (bool newValue) {
-                            ref.read(chargingReminderProvider.notifier).state =
-                                newValue;
+                            ref
+                                .read(userSecurityViewModelProvider.notifier)
+                                .toggleFaceId(newValue);
                           },
                         ),
                         SwitchTile(
                           title: "SMS Authenticator",
-                          value: isChargingReminderEnabled,
+                          value: securityState.isSmsAuthenticatorEnabled,
                           onChanged: (bool newValue) {
-                            ref.read(chargingReminderProvider.notifier).state =
-                                newValue;
+                            ref
+                                .read(userSecurityViewModelProvider.notifier)
+                                .toggleSmsAuthenticator(newValue);
                           },
                         ),
                         SwitchTile(
                           title: "Google Authenticator",
-                          value: isChargingReminderEnabled,
+                          value: securityState.isGoogleAuthenticatorEnabled,
                           onChanged: (bool newValue) {
-                            ref.read(chargingReminderProvider.notifier).state =
-                                newValue;
+                            ref
+                                .read(userSecurityViewModelProvider.notifier)
+                                .toggleGoogleAuthenticator(newValue);
                           },
                         ),
 
@@ -104,22 +106,161 @@ class AccountSecurityScreen extends ConsumerWidget {
                         ),
                         SettingsTile(
                           title: "Device Management",
-                          onTap: () {},
+                          onTap: () {
+                            ref
+                                .read(userSecurityViewModelProvider.notifier)
+                                .deviceManagement(context);
+                          },
                           subtitle:
                               "Manage your account on the various devices you own.",
                         ),
                         SettingsTile(
                           title: "Deactivate Account",
-                          onTap: () {},
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: context.backgroundClr,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(24.r),
+                                ),
+                              ),
+                              builder: (context) {
+                                return Padding(
+                                  padding: EdgeInsets.all(24.w),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        "Deactivate Account",
+                                        style: AppFonts.sb24(
+                                          color: context.textPrimaryClr,
+                                        ),
+                                      ),
+                                      SizedBox(height: 12.h),
+                                      Text(
+                                        "Are you sure you want to deactivate your account? You can reactivate it by logging in again.",
+                                        textAlign: TextAlign.center,
+                                        style: AppFonts.m16(
+                                          color: context.textSecondaryClr,
+                                        ),
+                                      ),
+                                      SizedBox(height: 32.h),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: AppLargeElevatedButton(
+                                              text: 'Cancel',
+                                              backgroundColor: context.boxClr,
+                                              textColor: context.textPrimaryClr,
+                                              onPressed: () {
+                                                context.pop();
+                                              },
+                                            ),
+                                          ),
+                                          SizedBox(width: 16.w),
+                                          Expanded(
+                                            child: AppLargeElevatedButton(
+                                              text: 'Deactivate',
+                                              backgroundColor:
+                                                  AppColors.primaryBlue,
+                                              textColor: Colors.white,
+                                              onPressed: () {
+                                                context.pop();
+                                                ref
+                                                    .read(
+                                                      userSecurityViewModelProvider
+                                                          .notifier,
+                                                    )
+                                                    .deactivateAccount(context);
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 16.h),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
                           subtitle:
-                              "Temporarily deactivate your account Easily reactivate when you are ready.",
+                              "Temporarily deactivate your account. Easily reactivate when you are ready.",
                         ),
                         SettingsTile(
                           title: "Delete Account",
                           titleColor: AppColors.error,
-                          onTap: () {},
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: context.backgroundClr,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(24.r),
+                                ),
+                              ),
+                              builder: (context) {
+                                return Padding(
+                                  padding: EdgeInsets.all(24.w),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        "Delete Account",
+                                        style: AppFonts.sb24(
+                                          color: context.textPrimaryClr,
+                                        ),
+                                      ),
+                                      SizedBox(height: 12.h),
+                                      Text(
+                                        "Are you sure you want to permanently delete your account? This action cannot be undone.",
+                                        textAlign: TextAlign.center,
+                                        style: AppFonts.m16(
+                                          color: context.textSecondaryClr,
+                                        ),
+                                      ),
+                                      SizedBox(height: 32.h),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: AppLargeElevatedButton(
+                                              text: 'Cancel',
+                                              backgroundColor: context.boxClr,
+                                              textColor: context.textPrimaryClr,
+                                              onPressed: () {
+                                                context.pop();
+                                              },
+                                            ),
+                                          ),
+                                          SizedBox(width: 16.w),
+                                          Expanded(
+                                            child: AppLargeElevatedButton(
+                                              text: 'Delete',
+                                              backgroundColor: AppColors.error,
+                                              textColor: Colors.white,
+                                              onPressed: () {
+                                                context.pop();
+                                                ref
+                                                    .read(
+                                                      userSecurityViewModelProvider
+                                                          .notifier,
+                                                    )
+                                                    .deleteAccount(context);
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 16.h),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
                           subtitle:
-                              "Permanently delete your account and data Proceed with caution.",
+                              "Permanently delete your account and data. Proceed with caution.",
                         ),
                       ],
                     ),

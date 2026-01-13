@@ -29,4 +29,13 @@ class HiveManager {
 
   static Box<Map<dynamic, dynamic>> get userBox =>
       Hive.box<Map<dynamic, dynamic>>(HiveBoxes.userBox);
+
+  // Clear all local data (useful for logout/delete account)
+  static Future<void> clearAllData() async {
+    await goalsBox.clear();
+    await transactionsBox.clear();
+    await userBox.clear();
+    // Assuming savingsBox is generic dynamic/or specific type if defined
+    await Hive.box(HiveBoxes.savingsBox).clear();
+  }
 }

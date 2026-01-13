@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../../../core/error/exceptions.dart';
 import '../models/goal_model.dart';
 
@@ -47,8 +49,34 @@ class GoalRemoteDataSource {
           'address': null,
         }, SetOptions(merge: true));
       }
+
+      // Ensure preferences document exists
+      final prefsDoc = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('settings')
+          .doc('preferences');
+
+      final prefsSnapshot = await prefsDoc.get();
+      if (!prefsSnapshot.exists) {
+        await prefsDoc.set({
+          'themeMode': 'system',
+          'language': 'en',
+          'updatedAt': DateTime.now().toIso8601String(),
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       throw ServerException('Failed to ensure user document: $e');
+    }
+  }
+
+  /// Check if the user has any goals (efficiently)
+  Future<bool> hasAnyGoals() async {
+    try {
+      final snapshot = await _goalsCollection.limit(1).get();
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      throw ServerException(e.toString());
     }
   }
 
@@ -235,6 +263,21 @@ class GoalRemoteDataSource {
       return await getGoalById(goalId);
     } catch (e) {
       throw ServerException(e.toString());
+    }
+  }
+
+  /// Upload goal image to Firebase Storage
+  Future<String> uploadGoalImage(File imageFile) async {
+    try {
+      final storageRef = FirebaseStorage.instance.ref().child(
+        'users/$_uid/goals/${DateTime.now().millisecondsSinceEpoch}_${imageFile.path.split('/').last}',
+      );
+
+      final uploadTask = await storageRef.putFile(imageFile);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      throw ServerException('Failed to upload image: $e');
     }
   }
 

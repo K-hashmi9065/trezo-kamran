@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:toastification/toastification.dart';
+import 'package:trezo_saving_ai_app/core/l10n/app_localizations.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/hive_manager.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_service.dart';
 import 'core/theme/theme_viewmodel.dart';
 import 'firebase_options.dart';
+import 'feature/account/presentation/provider/user_appearance_viewmodel.dart';
+import 'feature/account/presentation/screens/app_appearance/app_language.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +43,18 @@ class MyApp extends ConsumerWidget {
             darkTheme: AppTheme.dark,
             themeMode: themeState.themeMode.toThemeMode(),
             routerConfig: appRouter,
+
+            // Localization
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLanguageScreen.languages
+                .map((e) => Locale(e.code))
+                .toList(),
+            locale: Locale(ref.watch(userAppearanceViewModelProvider).language),
           ),
         );
       },

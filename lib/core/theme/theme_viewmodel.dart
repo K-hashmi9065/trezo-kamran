@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme_service.dart';
 import 'theme_state.dart';
+import '../../feature/account/presentation/provider/user_appearance_viewmodel.dart';
 
 /// Theme ViewModel for managing app theme
 class ThemeViewModel extends Notifier<ThemeState> {
@@ -9,6 +10,17 @@ class ThemeViewModel extends Notifier<ThemeState> {
   @override
   ThemeState build() {
     _themeService = ref.read(themeServiceProvider);
+
+    // Listen to user appearance for theme changes
+    ref.listen(userAppearanceViewModelProvider, (previous, next) {
+      if (next.themeMode != previous?.themeMode) {
+        final newMode = AppThemeMode.fromString(next.themeMode);
+        if (state.themeMode != newMode) {
+          state = state.copyWith(themeMode: newMode);
+          _themeService.saveThemeMode(next.themeMode);
+        }
+      }
+    });
 
     // Load saved theme or use system default
     final savedTheme = _themeService.getThemeMode();
@@ -24,8 +36,13 @@ class ThemeViewModel extends Notifier<ThemeState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      // Save theme preference
+      // Save theme preference locally
       await _themeService.saveThemeMode(newTheme.name);
+
+      // Save to user preferences
+      await ref
+          .read(userAppearanceViewModelProvider.notifier)
+          .updateThemeMode(newTheme.name);
 
       // Update state
       state = state.copyWith(themeMode: newTheme, isLoading: false);

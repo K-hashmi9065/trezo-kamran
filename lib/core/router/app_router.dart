@@ -8,7 +8,9 @@ import '../../feature/account/presentation/screens/help_support/help_support_scr
 import '../../feature/account/presentation/screens/preference_screen.dart';
 import '../../feature/account/presentation/screens/profile_screen.dart';
 import '../../feature/account/presentation/screens/linked_account.dart';
+import '../../feature/home/presentation/screens/archived_screen.dart';
 import '../../feature/home/presentation/screens/empty_goal_screen.dart';
+import '../../feature/home/presentation/screens/home_screen.dart';
 import '../../feature/subscription/presentation/screens/payment_benifit_unlock_congratulation.dart';
 import '../../feature/subscription/presentation/screens/review_summary_screen.dart';
 import '../../feature/subscription/presentation/screens/upgrade_plan_screen.dart';
@@ -54,11 +56,20 @@ final appRouter = GoRouter(
       path: RouteNames.emptyHomeScreen,
       builder: (context, state) => const EmptyGoalScreen(),
     ),
+    // home screen route
+    GoRoute(
+      name: RouteNames.homeScreen,
+      path: RouteNames.homeScreen,
+      builder: (context, state) => const HomeScreen(),
+    ),
     // create goal screen route
     GoRoute(
       name: RouteNames.createGoalScreen,
       path: RouteNames.createGoalScreen,
-      builder: (context, state) => const CreateGoalScreen(),
+      builder: (context, state) {
+        final goal = state.extra as Goal?;
+        return CreateGoalScreen(initialGoal: goal);
+      },
     ),
     // goal detail screen route
     GoRoute(
@@ -74,7 +85,7 @@ final appRouter = GoRouter(
       name: RouteNames.goalRecordsScreen,
       path: RouteNames.goalRecordsScreen,
       builder: (context, state) {
-        return const RecordsScreen();
+        return RecordsScreen(extra: state.extra);
       },
     ),
     // help & support screen route
@@ -173,6 +184,12 @@ final appRouter = GoRouter(
       name: RouteNames.splash,
       path: RouteNames.splash,
       builder: (context, state) => const SplashScreen(),
+    ),
+    // archived screen route
+    GoRoute(
+      name: RouteNames.archivedScreen,
+      path: RouteNames.archivedScreen,
+      builder: (context, state) => const ArchivedScreen(),
     ),
   ],
 );

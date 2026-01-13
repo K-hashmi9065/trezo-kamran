@@ -8,6 +8,8 @@ class UserModel extends User {
     super.email,
     super.displayName,
     super.photoUrl,
+    super.phoneNumber,
+    super.gender,
   });
 
   /// Create UserModel from Firebase User
@@ -17,6 +19,7 @@ class UserModel extends User {
       email: firebaseUser.email,
       displayName: firebaseUser.displayName,
       photoUrl: firebaseUser.photoURL,
+      phoneNumber: firebaseUser.phoneNumber,
     );
   }
 
@@ -27,6 +30,8 @@ class UserModel extends User {
       'email': email,
       'displayName': displayName,
       'photoUrl': photoUrl,
+      'phoneNumber': phoneNumber,
+      'gender': gender,
     };
   }
 
@@ -37,6 +42,8 @@ class UserModel extends User {
       email: json['email'] as String?,
       displayName: json['displayName'] as String?,
       photoUrl: json['photoUrl'] as String?,
+      phoneNumber: (json['phoneNumber'] ?? json['phone']) as String?,
+      gender: json['gender'] as String?,
     );
   }
 
@@ -47,6 +54,8 @@ class UserModel extends User {
       email: email,
       displayName: displayName,
       photoUrl: photoUrl,
+      phoneNumber: phoneNumber,
+      gender: gender,
     );
   }
 }

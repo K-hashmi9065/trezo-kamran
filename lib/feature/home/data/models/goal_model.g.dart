@@ -26,6 +26,7 @@ class GoalModelAdapter extends TypeAdapter<GoalModel> {
       hiveCategory: fields[6] as String,
       hiveCurrency: fields[7] as String,
       hiveIsCompleted: fields[8] as bool,
+      hiveIsArchived: fields[15] as bool?,
       hiveCreatedAt: fields[9] as DateTime,
       hiveUpdatedAt: fields[10] as DateTime,
       hiveCoverImagePath: fields[11] as String?,
@@ -38,7 +39,7 @@ class GoalModelAdapter extends TypeAdapter<GoalModel> {
   @override
   void write(BinaryWriter writer, GoalModel obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.hiveId)
       ..writeByte(1)
@@ -68,7 +69,9 @@ class GoalModelAdapter extends TypeAdapter<GoalModel> {
       ..writeByte(13)
       ..write(obj.hiveColor)
       ..writeByte(14)
-      ..write(obj.hiveIcon);
+      ..write(obj.hiveIcon)
+      ..writeByte(15)
+      ..write(obj.hiveIsArchived);
   }
 
   @override

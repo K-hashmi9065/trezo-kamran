@@ -38,11 +38,12 @@ class TransactionRemoteDataSource {
     try {
       final snapshot = await _getTransactionsCollection(
         goalId,
-      ).orderBy('date', descending: true).get();
+      ).get(); // Removed orderBy to avoid missing index errors
 
-      return snapshot.docs
-          .map((doc) => TransactionModel.fromJson(doc.data()))
-          .toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return _mapDataToModel(data);
+      }).toList();
     } catch (e) {
       throw ServerException(e.toString());
     }
@@ -62,11 +63,24 @@ class TransactionRemoteDataSource {
         throw NotFoundException('Transaction not found');
       }
 
-      return TransactionModel.fromJson(doc.data()!);
+      return _mapDataToModel(doc.data()!);
     } catch (e) {
       if (e is NotFoundException) rethrow;
       throw ServerException(e.toString());
     }
+  }
+
+  TransactionModel _mapDataToModel(Map<String, dynamic> data) {
+    // Handle Firestore Timestamp -> String conversion for date fields
+    if (data['date'] is Timestamp) {
+      data['date'] = (data['date'] as Timestamp).toDate().toIso8601String();
+    }
+    if (data['createdAt'] is Timestamp) {
+      data['createdAt'] = (data['createdAt'] as Timestamp)
+          .toDate()
+          .toIso8601String();
+    }
+    return TransactionModel.fromJson(data);
   }
 
   /// Add a new transaction (deposit or withdrawal)
@@ -216,7 +230,10 @@ class TransactionRemoteDataSource {
         final txRef = _getTransactionsCollection(goalId).doc(transactionId);
         final goalRef = _getGoalRef(goalId);
 
+        // READS FIRST
         final txSnapshot = await transaction.get(txRef);
+        final goalSnapshot = await transaction.get(goalRef);
+
         if (!txSnapshot.exists) return null;
 
         final txData = txSnapshot.data()!;
@@ -228,20 +245,22 @@ class TransactionRemoteDataSource {
         if (type == 'deposit') change = -amount;
         if (type == 'withdrawal') change = amount;
 
+        // WRITES LAST
         transaction.delete(txRef);
-        transaction.update(goalRef, {
-          'currentAmount': FieldValue.increment(change),
-          'updatedAt': DateTime.now().toIso8601String(),
-        });
 
-        final goalSnapshot = await transaction.get(goalRef);
         if (goalSnapshot.exists) {
+          transaction.update(goalRef, {
+            'currentAmount': FieldValue.increment(change),
+            'updatedAt': DateTime.now().toIso8601String(),
+          });
+
           final goalData = goalSnapshot.data()!;
           final currentVal = (goalData['currentAmount'] as num).toDouble();
           final updatedGoal = Map<String, dynamic>.from(goalData);
           updatedGoal['currentAmount'] = currentVal + change;
           return updatedGoal;
         }
+
         return null;
       });
     } catch (e) {

@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/app_snack_bar.dart';
+import '../../../../core/utils/app_large_elevated_button.dart';
 import '../../../auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../provider/user_provider.dart';
 import '../widgets/menu_items.dart';
@@ -88,7 +90,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                                     backgroundImage:
                                         (user?.photoUrl != null &&
                                             user!.photoUrl!.isNotEmpty)
-                                        ? NetworkImage(user.photoUrl!)
+                                        ? CachedNetworkImageProvider(
+                                                user.photoUrl!,
+                                                errorListener: (_) {},
+                                              )
                                               as ImageProvider
                                         : AssetImage(AppAssets.profilePicIcon),
                                     radius: 40.r,
@@ -170,7 +175,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                           iconPath: AppAssets.appearanceIcon,
                           title: 'Archive',
                           onTap: () {
-                            // context.push(RouteName.preference);
+                            context.push(RouteNames.archivedScreen);
                           },
                         ),
                         MenuItem(
@@ -225,33 +230,101 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                           iconPath: AppAssets.logoutIcon,
                           title: 'Logout',
                           islogout: true,
-                          onTap: () async {
-                            try {
-                              // Call logout from AuthViewModel
-                              await ref
-                                  .read(authViewModelProvider.notifier)
-                                  .logout();
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: context.backgroundClr,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(24.r),
+                                ),
+                              ),
+                              builder: (context) {
+                                return Padding(
+                                  padding: EdgeInsets.all(24.w),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Logout',
+                                        style: AppFonts.sb24(
+                                          color: context.textPrimaryClr,
+                                        ),
+                                      ),
+                                      SizedBox(height: 12.h),
+                                      Text(
+                                        'Are you sure you want to logout?',
+                                        textAlign: TextAlign.center,
+                                        style: AppFonts.m16(
+                                          color: context.textSecondaryClr,
+                                        ),
+                                      ),
+                                      SizedBox(height: 32.h),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: AppLargeElevatedButton(
+                                              text: 'Cancel',
+                                              backgroundColor:
+                                                  AppColors.lightBlue,
+                                              textColor: AppColors.primaryBlue,
+                                              onPressed: () {
+                                                context.pop();
+                                              },
+                                            ),
+                                          ),
+                                          SizedBox(width: 16.w),
+                                          Expanded(
+                                            child: AppLargeElevatedButton(
+                                              text: 'Yes, Logout',
+                                              backgroundColor: AppColors.error,
+                                              textColor: AppColors.background,
+                                              onPressed: () async {
+                                                context
+                                                    .pop(); // Close bottom sheet
+                                                try {
+                                                  // Call logout from AuthViewModel
+                                                  await ref
+                                                      .read(
+                                                        authViewModelProvider
+                                                            .notifier,
+                                                      )
+                                                      .logout();
 
-                              if (!context.mounted) return;
+                                                  if (!context.mounted) return;
 
-                              // Show success message
-                              AppSnackBar.showSuccess(
-                                context,
-                                message:
-                                    'You have been logged out successfully',
-                                title: 'Logged Out',
-                              );
+                                                  // Show success message
+                                                  AppSnackBar.showSuccess(
+                                                    context,
+                                                    message:
+                                                        'You have been logged out successfully',
+                                                    title: 'Logged Out',
+                                                  );
 
-                              // Navigate to welcome screen
-                              context.go(RouteNames.welcomeScreen);
-                            } catch (e) {
-                              if (!context.mounted) return;
-                              AppSnackBar.showError(
-                                context,
-                                message: 'Error logging out: $e',
-                                title: 'Logout Failed',
-                              );
-                            }
+                                                  // Navigate to welcome screen
+                                                  context.go(
+                                                    RouteNames.welcomeScreen,
+                                                  );
+                                                } catch (e) {
+                                                  if (!context.mounted) return;
+                                                  AppSnackBar.showError(
+                                                    context,
+                                                    message:
+                                                        'Error logging out: $e',
+                                                    title: 'Logout Failed',
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 16.h),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
                           },
                         ),
                       ],

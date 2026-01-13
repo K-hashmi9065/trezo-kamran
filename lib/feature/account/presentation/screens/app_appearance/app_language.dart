@@ -7,8 +7,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/fonts.dart';
+import '../../../../../core/l10n/app_localizations.dart';
 import '../../../models/language_model.dart';
-import '../../provider/language_provider.dart';
+import '../../provider/user_appearance_viewmodel.dart';
 
 // -------------------- SCREEN --------------------
 class AppLanguageScreen extends ConsumerWidget {
@@ -31,7 +32,8 @@ class AppLanguageScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedLang = ref.watch(appLanguageProvider);
+    final selectedLang = ref.watch(userAppearanceViewModelProvider).language;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: context.backgroundClr,
@@ -50,7 +52,7 @@ class AppLanguageScreen extends ConsumerWidget {
           ),
         ),
         title: Text(
-          "App Language",
+          l10n.appLanguage,
           style: AppFonts.sb26(color: context.textPrimaryClr),
         ),
       ),
@@ -71,7 +73,9 @@ class AppLanguageScreen extends ConsumerWidget {
 
               return InkWell(
                 onTap: () {
-                  ref.read(appLanguageProvider.notifier).state = lang.code;
+                  ref
+                      .read(userAppearanceViewModelProvider.notifier)
+                      .updateLanguage(lang.code);
                 },
                 child: Padding(
                   padding: EdgeInsets.symmetric(

@@ -11,6 +11,7 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/reset_password_usecase.dart';
 import '../../domain/usecases/signup_usecase.dart';
+import '../../../../feature/home/data/repositories_impl/goal_repository_provider.dart';
 import 'auth_state.dart';
 
 /// Auth ViewModel managing authentication state
@@ -63,8 +64,8 @@ class AuthViewModel extends Notifier<AuthState> {
           title: "Login Successful",
         );
 
-        // Navigate to home screen
-        context.go(RouteNames.emptyHomeScreen);
+        // Navigate based on goals
+        await _checkGoalsAndNavigate(context);
       }
     } catch (e) {
       state = AuthError(e.toString());
@@ -153,8 +154,8 @@ class AuthViewModel extends Notifier<AuthState> {
             title: "Sign In Successful",
           );
 
-          // Navigate to home screen
-          context.go(RouteNames.emptyHomeScreen);
+          // Navigate based on goals
+          await _checkGoalsAndNavigate(context);
         }
       } else {
         state = const AuthError('Google sign-in was cancelled');
@@ -244,6 +245,29 @@ class AuthViewModel extends Notifier<AuthState> {
   /// Reset to initial state
   void resetState() {
     state = const AuthInitial();
+  }
+
+  /// Check for existing goals and navigate accordingly
+  Future<void> _checkGoalsAndNavigate(BuildContext context) async {
+    if (!context.mounted) return;
+
+    try {
+      final goalRepository = ref.read(goalRepositoryProvider);
+      final hasGoals = await goalRepository.hasAnyGoals();
+
+      if (context.mounted) {
+        if (hasGoals) {
+          context.go(RouteNames.homeScreen);
+        } else {
+          context.go(RouteNames.emptyHomeScreen);
+        }
+      }
+    } catch (e) {
+      // Fallback to empty home screen on error
+      if (context.mounted) {
+        context.go(RouteNames.emptyHomeScreen);
+      }
+    }
   }
 }
 

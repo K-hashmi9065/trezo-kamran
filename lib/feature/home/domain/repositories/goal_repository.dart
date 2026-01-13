@@ -5,6 +5,9 @@ abstract class GoalRepository {
   /// Get all goals
   Future<List<Goal>> getAllGoals();
 
+  /// Check if user has any goals
+  Future<bool> hasAnyGoals();
+
   /// Get a specific goal by ID
   Future<Goal?> getGoalById(String id);
 

@@ -1,4 +1,8 @@
 class RouteNames {
+  // archived screen route name
+  static const archivedScreen = '/goal/archived';
+  // home screen
+  static const homeScreen = '/home';
   // empty home screen
   static const emptyHomeScreen = '/home/empty';
   // help and support

@@ -11,6 +11,7 @@ class Goal {
   final String category;
   final String currency;
   final bool isCompleted;
+  final bool isArchived; // New field
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? coverImagePath; // Optional cover image
@@ -28,6 +29,7 @@ class Goal {
     required this.category,
     this.currency = 'INR',
     this.isCompleted = false,
+    this.isArchived = false, // Default false
     required this.createdAt,
     required this.updatedAt,
     this.coverImagePath,
@@ -36,28 +38,7 @@ class Goal {
     this.icon,
   });
 
-  /// Calculate progress percentage
-  double get progressPercentage {
-    if (targetAmount == 0) return 0;
-    return (currentAmount / targetAmount * 100).clamp(0, 100);
-  }
-
-  /// Check if goal is overdue
-  bool get isOverdue {
-    if (targetDate == null) return false;
-    return !isCompleted && DateTime.now().isAfter(targetDate!);
-  }
-
-  /// Days remaining until target date
-  int? get daysRemaining {
-    if (targetDate == null) return null;
-    return targetDate!.difference(DateTime.now()).inDays;
-  }
-
-  /// Amount remaining to reach target
-  double get remainingAmount {
-    return (targetAmount - currentAmount).clamp(0, double.infinity);
-  }
+  // ... (getters)
 
   /// Copy with method for immutability
   Goal copyWith({
@@ -70,6 +51,7 @@ class Goal {
     String? category,
     String? currency,
     bool? isCompleted,
+    bool? isArchived,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? coverImagePath,
@@ -87,6 +69,7 @@ class Goal {
       category: category ?? this.category,
       currency: currency ?? this.currency,
       isCompleted: isCompleted ?? this.isCompleted,
+      isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       coverImagePath: coverImagePath ?? this.coverImagePath,
@@ -109,7 +92,8 @@ class Goal {
           targetDate == other.targetDate &&
           category == other.category &&
           currency == other.currency &&
-          isCompleted == other.isCompleted;
+          isCompleted == other.isCompleted &&
+          isArchived == other.isArchived;
 
   @override
   int get hashCode =>
@@ -121,10 +105,34 @@ class Goal {
       targetDate.hashCode ^
       category.hashCode ^
       currency.hashCode ^
-      isCompleted.hashCode;
+      isCompleted.hashCode ^
+      isArchived.hashCode;
 
   @override
   String toString() {
-    return 'Goal{id: $id, title: $title, targetAmount: $targetAmount, currentAmount: $currentAmount, progress: ${progressPercentage.toStringAsFixed(1)}%}';
+    return 'Goal{id: $id, title: $title, targetAmount: $targetAmount, currentAmount: $currentAmount, progress: ${progressPercentage.toStringAsFixed(1)}%, isArchived: $isArchived}';
+  }
+
+  /// Calculate progress percentage
+  double get progressPercentage {
+    if (targetAmount == 0) return 0;
+    return (currentAmount / targetAmount * 100).clamp(0, 100);
+  }
+
+  /// Check if goal is overdue
+  bool get isOverdue {
+    if (targetDate == null) return false;
+    return !isCompleted && DateTime.now().isAfter(targetDate!);
+  }
+
+  /// Days remaining until target date
+  int? get daysRemaining {
+    if (targetDate == null) return null;
+    return targetDate!.difference(DateTime.now()).inDays;
+  }
+
+  /// Amount remaining to reach target
+  double get remainingAmount {
+    return (targetAmount - currentAmount).clamp(0, double.infinity);
   }
 }
