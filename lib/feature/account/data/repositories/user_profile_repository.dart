@@ -102,6 +102,9 @@ class UserProfileRepository {
           email: currentUser.email,
           displayName: currentUser.displayName,
           photoUrl: avatarUrl,
+          phoneNumber: currentUser.phoneNumber,
+          gender: currentUser.gender,
+          isPro: currentUser.isPro,
         );
         await _localDataSource.cacheUserProfile(updatedUser);
       }

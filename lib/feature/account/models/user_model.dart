@@ -5,6 +5,7 @@ class UserModel {
   final String? photoUrl;
   final String? phone;
   final Map<String, dynamic>? sleepStats;
+  final bool isPro;
 
   UserModel({
     this.id,
@@ -13,6 +14,7 @@ class UserModel {
     this.photoUrl,
     this.phone,
     this.sleepStats,
+    this.isPro = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class UserModel {
       photoUrl: json['photoUrl'] as String?,
       phone: json['phone'] as String?,
       sleepStats: json['sleepStats'] as Map<String, dynamic>?,
+      isPro: json['isPro'] as bool? ?? false,
     );
   }
 
@@ -34,6 +37,7 @@ class UserModel {
       'photoUrl': photoUrl,
       'phone': phone,
       'sleepStats': sleepStats,
+      'isPro': isPro,
     };
   }
 
@@ -44,6 +48,7 @@ class UserModel {
     String? photoUrl,
     String? phone,
     Map<String, dynamic>? sleepStats,
+    bool? isPro,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -52,6 +57,7 @@ class UserModel {
       photoUrl: photoUrl ?? this.photoUrl,
       phone: phone ?? this.phone,
       sleepStats: sleepStats ?? this.sleepStats,
+      isPro: isPro ?? this.isPro,
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:uuid/uuid.dart';
+import '../../../../feature/account/presentation/provider/user_appearance_viewmodel.dart';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 
@@ -41,8 +43,6 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
   String? _selectedCoverPath; // File path when a photo is chosen as cover
   Uint8List? _selectedCoverBytes; // For web or memory-based images
 
-  final List<String> _currencies = ['INR', 'USD', 'EUR', 'GBP', 'JPY'];
-
   final List<int> _colorOptions = [
     0xFF5B7FFF, // Blue
     0xFFFF9500, // Orange
@@ -54,6 +54,15 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize currency from global preference if not editing
+    if (widget.initialGoal == null) {
+      try {
+        _selectedCurrency = ref.read(userAppearanceViewModelProvider).currency;
+      } catch (_) {
+        // Fallback if provider not ready (unlikely)
+      }
+    }
+
     if (widget.initialGoal != null) {
       final goal = widget.initialGoal!;
       _titleController.text = goal.title;
@@ -238,6 +247,88 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
             }
           }
         },
+      ),
+    );
+  }
+
+  void _showColorPickerDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: context.whiteClr,
+        title: Text(
+          'Pick a Color',
+          style: AppFonts.sb18(color: context.textPrimaryClr),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Wrap(
+              spacing: 12.w,
+              runSpacing: 12.h,
+              alignment: WrapAlignment.center,
+              children: [
+                ...Colors.primaries.map(
+                  (color) => GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedColor = color.value;
+                      });
+                      context.pop();
+                    },
+                    child: Container(
+                      width: 40.w,
+                      height: 40.w,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: _selectedColor == color.value
+                            ? Border.all(
+                                color: context.textPrimaryClr,
+                                width: 2,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+                ...Colors.accents.map(
+                  (color) => GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedColor = color.value;
+                      });
+                      context.pop();
+                    },
+                    child: Container(
+                      width: 40.w,
+                      height: 40.w,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: _selectedColor == color.value
+                            ? Border.all(
+                                color: context.textPrimaryClr,
+                                width: 2,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(),
+            child: Text(
+              'Cancel',
+              style: AppFonts.sb14(color: context.textPrimaryClr),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -434,49 +525,64 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
                         style: AppFonts.m14(color: context.textPrimaryClr),
                       ),
                       SizedBox(height: 8.h),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedCurrency,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: context.whiteClr,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.r),
-                            borderSide: BorderSide(color: AppColors.lightBlue),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.r),
-                            borderSide: BorderSide(color: AppColors.lightBlue),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.r),
-                            borderSide: BorderSide(
-                              color: AppColors.primaryBlue,
-                              width: 2,
-                            ),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16.w,
-                            vertical: 14.h,
-                          ),
-                        ),
-                        items: _currencies.map((currency) {
-                          return DropdownMenuItem(
-                            value: currency,
-                            child: Text(
-                              currency,
-                              style: AppFonts.r14(
+                      InkWell(
+                        onTap: () {
+                          showCurrencyPicker(
+                            context: context,
+                            showFlag: true,
+                            showCurrencyName: true,
+                            showCurrencyCode: true,
+                            onSelect: (Currency value) {
+                              setState(() {
+                                _selectedCurrency = value.code;
+                              });
+                              ref
+                                  .read(
+                                    userAppearanceViewModelProvider.notifier,
+                                  )
+                                  .updateCurrency(value.code);
+                            },
+                            theme: CurrencyPickerThemeData(
+                              backgroundColor: context.boxClr,
+                              titleTextStyle: AppFonts.sb18(
+                                color: context.textPrimaryClr,
+                              ),
+                              subtitleTextStyle: AppFonts.m14(
+                                color: context.textSecondaryClr,
+                              ),
+                              currencySignTextStyle: AppFonts.m18(
                                 color: context.textPrimaryClr,
                               ),
                             ),
                           );
-                        }).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedCurrency = value;
-                            });
-                          }
                         },
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16.w,
+                            vertical: 14.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: context.whiteClr,
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(color: AppColors.lightBlue),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _selectedCurrency,
+                                style: AppFonts.r14(
+                                  color: context.textPrimaryClr,
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                color: context.textSecondaryClr,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
 
                       SizedBox(height: 20.h),
@@ -597,17 +703,20 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
                               ),
                             );
                           }),
-                          Container(
-                            width: 40.w,
-                            height: 40.w,
-                            decoration: BoxDecoration(
-                              color: AppColors.lightBlue,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.add,
-                              color: AppColors.primaryBlue,
-                              size: 20.sp,
+                          GestureDetector(
+                            onTap: _showColorPickerDialog,
+                            child: Container(
+                              width: 40.w,
+                              height: 40.w,
+                              decoration: BoxDecoration(
+                                color: AppColors.lightBlue,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.add,
+                                color: AppColors.primaryBlue,
+                                size: 20.sp,
+                              ),
                             ),
                           ),
                         ],

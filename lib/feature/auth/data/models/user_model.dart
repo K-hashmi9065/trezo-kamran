@@ -10,6 +10,7 @@ class UserModel extends User {
     super.photoUrl,
     super.phoneNumber,
     super.gender,
+    super.isPro,
   });
 
   /// Create UserModel from Firebase User
@@ -20,6 +21,7 @@ class UserModel extends User {
       displayName: firebaseUser.displayName,
       photoUrl: firebaseUser.photoURL,
       phoneNumber: firebaseUser.phoneNumber,
+      isPro: false,
     );
   }
 
@@ -32,6 +34,7 @@ class UserModel extends User {
       'photoUrl': photoUrl,
       'phoneNumber': phoneNumber,
       'gender': gender,
+      'isPro': isPro,
     };
   }
 
@@ -44,6 +47,7 @@ class UserModel extends User {
       photoUrl: json['photoUrl'] as String?,
       phoneNumber: (json['phoneNumber'] ?? json['phone']) as String?,
       gender: json['gender'] as String?,
+      isPro: json['isPro'] as bool? ?? false,
     );
   }
 
@@ -56,6 +60,7 @@ class UserModel extends User {
       photoUrl: photoUrl,
       phoneNumber: phoneNumber,
       gender: gender,
+      isPro: isPro,
     );
   }
 }

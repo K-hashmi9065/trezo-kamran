@@ -150,6 +150,9 @@ class _AddSavingsBottomSheetState extends State<AddSavingsBottomSheet> {
                 decoration: InputDecoration(
                   hintText: '2,000',
                   hintStyle: AppFonts.r16(color: AppColors.textSecondary),
+                  prefixText:
+                      '${NumberFormat.simpleCurrency(name: widget.currency).currencySymbol} ',
+                  prefixStyle: AppFonts.sb16(color: context.textPrimaryClr),
                   filled: true,
                   fillColor: context.backgroundClr,
                   border: OutlineInputBorder(

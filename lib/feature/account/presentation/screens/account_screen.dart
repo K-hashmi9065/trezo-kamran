@@ -58,12 +58,30 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                UpgradeProCard(
-                  onTap: () {
-                    context.push(RouteNames.upgradePlanScreen);
+                Consumer(
+                  builder: (context, ref, _) {
+                    final userAsync = ref.watch(currentUserProvider);
+                    return userAsync.when(
+                      data: (user) {
+                        if (user != null && user.isPro) {
+                          return const SizedBox.shrink();
+                        }
+                        return Column(
+                          children: [
+                            UpgradeProCard(
+                              onTap: () {
+                                context.push(RouteNames.upgradePlanScreen);
+                              },
+                            ),
+                            SizedBox(height: 15.h),
+                          ],
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, _) => const SizedBox.shrink(),
+                    );
                   },
                 ),
-                SizedBox(height: 15.h),
                 Container(
                   margin: EdgeInsets.symmetric(horizontal: 15.h),
                   decoration: BoxDecoration(

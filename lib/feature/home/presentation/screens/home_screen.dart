@@ -7,10 +7,12 @@ import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cached_network_image/cached_network_image.dart';
 
+import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../account/presentation/provider/user_profile_viewmodel.dart';
+import '../../../account/presentation/provider/user_appearance_viewmodel.dart';
 import '../../domain/entities/goal.dart';
 import '../viewmodels/goal_viewmodel.dart';
 import '../viewmodels/goal_state.dart';
@@ -26,7 +28,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  bool _isGaugeView = false;
   SortOption? _currentSort;
   Set<FilterOption> _currentFilters = {};
 
@@ -102,31 +103,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         centerTitle: true,
         actions: [
-          Padding(
-            padding: EdgeInsets.only(right: 16.w),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _isGaugeView = !_isGaugeView;
-                });
-              },
-              borderRadius: BorderRadius.circular(16.r),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue,
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.star, color: AppColors.white, size: 16.sp),
-                    SizedBox(width: 4.w),
-                    Text('PRO', style: AppFonts.sb14(color: AppColors.white)),
-                  ],
-                ),
-              ),
-            ),
+          Consumer(
+            builder: (context, ref, _) {
+              final userState = ref.watch(userProfileViewModelProvider);
+
+              if (userState is UserProfileLoaded && userState.user.isPro) {
+                return Padding(
+                  padding: EdgeInsets.only(right: 16.w),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 6.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue,
+                      borderRadius: BorderRadius.circular(16.r),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star, color: AppColors.white, size: 16.sp),
+                        SizedBox(width: 4.w),
+                        Text(
+                          'PRO',
+                          style: AppFonts.sb14(color: AppColors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
         ],
       ),
@@ -305,8 +313,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         });
       }
 
+      // Get Global Currency
+      final currencyCode = ref.watch(userAppearanceViewModelProvider).currency;
+
       // Render Gauge View
-      if (_isGaugeView) {
+      final savingsView = ref
+          .watch(userAppearanceViewModelProvider)
+          .savingsView;
+      if (savingsView == 'gauge_chart') {
         return GridView.builder(
           padding: EdgeInsets.all(16.w),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -318,7 +332,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           itemCount: activeGoals.length,
           itemBuilder: (context, index) {
             final goal = activeGoals[index];
-            return GoalGaugeWidget(goal: goal);
+            return GoalGaugeWidget(goal: goal, currencyCode: currencyCode);
           },
         );
       }
@@ -330,7 +344,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         separatorBuilder: (context, index) => SizedBox(height: 16.h),
         itemBuilder: (context, index) {
           final goal = activeGoals[index];
-          return GoalCard(goal: goal);
+          return GoalCard(goal: goal, currencyCode: currencyCode);
         },
       );
     }
@@ -363,14 +377,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 class GoalCard extends StatelessWidget {
   final Goal goal;
+  final String currencyCode;
 
-  const GoalCard({super.key, required this.goal});
+  const GoalCard({super.key, required this.goal, required this.currencyCode});
 
   @override
   Widget build(BuildContext context) {
     final progress = goal.targetAmount > 0
         ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0)
         : 0.0;
+
+    // Currency formatter
+    final currencyFormatter = NumberFormat.compactSimpleCurrency(
+      name: currencyCode,
+    );
 
     return InkWell(
       onTap: () {
@@ -466,7 +486,7 @@ class GoalCard extends StatelessWidget {
 
                 // Target Amount
                 Text(
-                  '${goal.currency} ${_formatAmount(goal.targetAmount)}',
+                  currencyFormatter.format(goal.targetAmount),
                   style: AppFonts.sb16(color: context.textPrimaryClr),
                 ),
               ],
@@ -479,11 +499,11 @@ class GoalCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${goal.currency} ${_formatAmount(goal.currentAmount)}',
+                  currencyFormatter.format(goal.currentAmount),
                   style: AppFonts.r14(color: context.textSecondaryClr),
                 ),
                 Text(
-                  '${goal.currency} ${_formatAmount(goal.targetAmount)}',
+                  currencyFormatter.format(goal.targetAmount),
                   style: AppFonts.r14(color: context.textSecondaryClr),
                 ),
               ],
@@ -507,14 +527,5 @@ class GoalCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatAmount(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K';
-    }
-    return amount.toStringAsFixed(0);
   }
 }

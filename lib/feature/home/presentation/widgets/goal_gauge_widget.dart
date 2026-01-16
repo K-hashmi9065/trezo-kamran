@@ -5,7 +5,8 @@ import 'dart:convert';
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-import '../../../../core/constants/app_colors.dart';
+import 'package:intl/intl.dart';
+import 'package:trezo_saving_ai_app/core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../domain/entities/goal.dart';
@@ -13,14 +14,25 @@ import 'gauge_painter.dart';
 
 class GoalGaugeWidget extends StatelessWidget {
   final Goal goal;
+  final String currencyCode;
 
-  const GoalGaugeWidget({super.key, required this.goal});
+  const GoalGaugeWidget({
+    super.key,
+    required this.goal,
+    required this.currencyCode,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Progress calculation
     final progress = goal.targetAmount > 0
         ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0)
         : 0.0;
+
+    // Currency formatter
+    final currencyFormatter = NumberFormat.compactSimpleCurrency(
+      name: currencyCode,
+    );
 
     return InkWell(
       onTap: () {
@@ -145,14 +157,14 @@ class GoalGaugeWidget extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          '${goal.currency}${_formatAmount(goal.currentAmount)}',
+                          currencyFormatter.format(goal.currentAmount),
                           style: AppFonts.sb12(color: context.textPrimaryClr),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Flexible(
                         child: Text(
-                          '${goal.currency}${_formatAmount(goal.targetAmount)}',
+                          currencyFormatter.format(goal.targetAmount),
                           style: AppFonts.r12(color: context.textSecondaryClr),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -174,9 +186,11 @@ class GoalGaugeWidget extends StatelessWidget {
 
                 SizedBox(height: 2.h),
 
-                // Target Amount (below title)
+                // Target Amount (below title) - Replicated as per original logic?
+                // Wait, original had: "Target Amount (below title)" and "Current and Target Amounts" above.
+                // It shows target amount twice. I will keep it consistent.
                 Text(
-                  '${goal.currency}${_formatAmount(goal.targetAmount)}',
+                  currencyFormatter.format(goal.targetAmount),
                   style: AppFonts.r12(color: context.textSecondaryClr),
                 ),
               ],
@@ -185,14 +199,5 @@ class GoalGaugeWidget extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatAmount(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K';
-    }
-    return amount.toStringAsFixed(0);
   }
 }

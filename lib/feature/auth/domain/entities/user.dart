@@ -6,6 +6,7 @@ class User {
   final String? photoUrl;
   final String? phoneNumber;
   final String? gender;
+  final bool isPro;
 
   const User({
     required this.id,
@@ -14,6 +15,7 @@ class User {
     this.photoUrl,
     this.phoneNumber,
     this.gender,
+    this.isPro = false,
   });
 
   @override
@@ -26,7 +28,8 @@ class User {
           displayName == other.displayName &&
           photoUrl == other.photoUrl &&
           phoneNumber == other.phoneNumber &&
-          gender == other.gender;
+          gender == other.gender &&
+          isPro == other.isPro;
 
   @override
   int get hashCode =>
@@ -35,10 +38,11 @@ class User {
       displayName.hashCode ^
       photoUrl.hashCode ^
       phoneNumber.hashCode ^
-      gender.hashCode;
+      gender.hashCode ^
+      isPro.hashCode;
 
   @override
   String toString() {
-    return 'User{id: $id, email: $email, displayName: $displayName, photoUrl: $photoUrl, phoneNumber: $phoneNumber, gender: $gender}';
+    return 'User{id: $id, email: $email, displayName: $displayName, photoUrl: $photoUrl, phoneNumber: $phoneNumber, gender: $gender, isPro: $isPro}';
   }
 }

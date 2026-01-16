@@ -73,6 +73,46 @@ class UserAppearanceViewModel extends Notifier<UserAppearance> {
     await _updateAppearance(newAppearance);
   }
 
+  Future<void> updateSavingsView(String savingsView) async {
+    final newAppearance = state.copyWith(
+      savingsView: savingsView,
+      updatedAt: DateTime.now(),
+    );
+    await _updateAppearance(newAppearance);
+  }
+
+  Future<void> updateFirstDayOfWeek(String firstDayOfWeek) async {
+    final newAppearance = state.copyWith(
+      firstDayOfWeek: firstDayOfWeek,
+      updatedAt: DateTime.now(),
+    );
+    await _updateAppearance(newAppearance);
+  }
+
+  Future<void> updateDateFormat(String dateFormat) async {
+    final newAppearance = state.copyWith(
+      dateFormat: dateFormat,
+      updatedAt: DateTime.now(),
+    );
+    await _updateAppearance(newAppearance);
+  }
+
+  Future<void> updateCurrency(String currency) async {
+    final newAppearance = state.copyWith(
+      currency: currency,
+      updatedAt: DateTime.now(),
+    );
+    await _updateAppearance(newAppearance);
+  }
+
+  Future<void> updateLastCacheCleared() async {
+    final newAppearance = state.copyWith(
+      lastCacheCleared: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    await _updateAppearance(newAppearance);
+  }
+
   Future<void> _updateAppearance(UserAppearance appearance) async {
     // Optimistic update
     state = appearance;

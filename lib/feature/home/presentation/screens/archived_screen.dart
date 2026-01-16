@@ -6,10 +6,12 @@ import 'dart:convert';
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../domain/entities/goal.dart';
+import '../../../account/presentation/provider/user_appearance_viewmodel.dart';
 import '../viewmodels/goal_viewmodel.dart';
 import '../viewmodels/goal_state.dart';
 import '../widgets/goal_gauge_widget.dart';
@@ -24,7 +26,7 @@ class ArchivedScreen extends ConsumerStatefulWidget {
 }
 
 class _ArchivedScreenState extends ConsumerState<ArchivedScreen> {
-  bool _isGaugeView = false;
+  final bool _isGaugeView = false;
   SortOption? _currentSort;
   Set<FilterOption> _currentFilters = {};
 
@@ -191,10 +193,12 @@ class _ArchivedScreenState extends ConsumerState<ArchivedScreen> {
                     goal.currentAmount >= goal.targetAmount);
 
             if (showCompleted && isCompleted) return true;
-            if (showNotStarted && goal.currentAmount == 0 && !isCompleted)
+            if (showNotStarted && goal.currentAmount == 0 && !isCompleted) {
               return true;
-            if (showInProgress && goal.currentAmount > 0 && !isCompleted)
+            }
+            if (showInProgress && goal.currentAmount > 0 && !isCompleted) {
               return true;
+            }
             return false;
           }).toList();
         }
@@ -228,6 +232,9 @@ class _ArchivedScreenState extends ConsumerState<ArchivedScreen> {
         });
       }
 
+      // Get Global Currency
+      final currencyCode = ref.watch(userAppearanceViewModelProvider).currency;
+
       // Render Gauge View or List View
       if (_isGaugeView) {
         return GridView.builder(
@@ -241,7 +248,7 @@ class _ArchivedScreenState extends ConsumerState<ArchivedScreen> {
           itemCount: activeGoals.length,
           itemBuilder: (context, index) {
             final goal = activeGoals[index];
-            return GoalGaugeWidget(goal: goal);
+            return GoalGaugeWidget(goal: goal, currencyCode: currencyCode);
           },
         );
       }
@@ -252,7 +259,7 @@ class _ArchivedScreenState extends ConsumerState<ArchivedScreen> {
         separatorBuilder: (context, index) => SizedBox(height: 16.h),
         itemBuilder: (context, index) {
           final goal = activeGoals[index];
-          return GoalCard(goal: goal);
+          return GoalCard(goal: goal, currencyCode: currencyCode);
         },
       );
     }
@@ -285,14 +292,20 @@ class _ArchivedScreenState extends ConsumerState<ArchivedScreen> {
 
 class GoalCard extends StatelessWidget {
   final Goal goal;
+  final String currencyCode;
 
-  const GoalCard({super.key, required this.goal});
+  const GoalCard({super.key, required this.goal, required this.currencyCode});
 
   @override
   Widget build(BuildContext context) {
     final progress = goal.targetAmount > 0
         ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0)
         : 0.0;
+
+    // Currency formatter
+    final currencyFormatter = NumberFormat.compactSimpleCurrency(
+      name: currencyCode,
+    );
 
     return InkWell(
       onTap: () {
@@ -388,7 +401,7 @@ class GoalCard extends StatelessWidget {
 
                 // Target Amount
                 Text(
-                  '${goal.currency} ${_formatAmount(goal.targetAmount)}',
+                  currencyFormatter.format(goal.targetAmount),
                   style: AppFonts.sb16(color: context.textPrimaryClr),
                 ),
               ],
@@ -401,11 +414,11 @@ class GoalCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${goal.currency} ${_formatAmount(goal.currentAmount)}',
+                  currencyFormatter.format(goal.currentAmount),
                   style: AppFonts.r14(color: context.textSecondaryClr),
                 ),
                 Text(
-                  '${goal.currency} ${_formatAmount(goal.targetAmount)}',
+                  currencyFormatter.format(goal.targetAmount),
                   style: AppFonts.r14(color: context.textSecondaryClr),
                 ),
               ],
@@ -429,14 +442,5 @@ class GoalCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatAmount(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K';
-    }
-    return amount.toStringAsFixed(0);
   }
 }

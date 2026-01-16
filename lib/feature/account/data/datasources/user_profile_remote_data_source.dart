@@ -41,6 +41,7 @@ class UserProfileRemoteDataSource {
             photoUrl: user.photoUrl ?? authUser.photoURL,
             phoneNumber: user.phoneNumber ?? authUser.phoneNumber,
             gender: user.gender,
+            isPro: user.isPro,
           );
         }
 
