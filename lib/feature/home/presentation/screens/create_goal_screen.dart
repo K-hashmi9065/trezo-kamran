@@ -272,7 +272,7 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
                   (color) => GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedColor = color.value;
+                        _selectedColor = color.toARGB32();
                       });
                       context.pop();
                     },
@@ -282,7 +282,7 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
                       decoration: BoxDecoration(
                         color: color,
                         shape: BoxShape.circle,
-                        border: _selectedColor == color.value
+                        border: _selectedColor == color.toARGB32()
                             ? Border.all(
                                 color: context.textPrimaryClr,
                                 width: 2,
@@ -296,7 +296,7 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
                   (color) => GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedColor = color.value;
+                        _selectedColor = color.toARGB32();
                       });
                       context.pop();
                     },
@@ -306,7 +306,7 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
                       decoration: BoxDecoration(
                         color: color,
                         shape: BoxShape.circle,
-                        border: _selectedColor == color.value
+                        border: _selectedColor == color.toARGB32()
                             ? Border.all(
                                 color: context.textPrimaryClr,
                                 width: 2,

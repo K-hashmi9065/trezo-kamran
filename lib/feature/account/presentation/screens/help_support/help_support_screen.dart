@@ -8,6 +8,9 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/fonts.dart';
 import '../../widgets/menu_items.dart';
 import '../../provider/support_viewmodel.dart';
+import 'contact_support_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'term_services_screen.dart';
 
 class HelpSupportScreen extends ConsumerWidget {
   const HelpSupportScreen({super.key});
@@ -63,7 +66,29 @@ class HelpSupportScreen extends ConsumerWidget {
                             title: item.title,
                             onTap: () {
                               if (item.id == 'contact_support') {
-                                _showContactOptions(context, ref);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ContactSupportScreen(),
+                                  ),
+                                );
+                              } else if (item.id == 'privacy_policy') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const PrivacyPolicyScreen(),
+                                  ),
+                                );
+                              } else if (item.id == 'terms_of_service') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const TermServicesScreen(),
+                                  ),
+                                );
                               } else if (item.url != null) {
                                 _launchUrl(item.url!);
                               }
@@ -90,112 +115,6 @@ class HelpSupportScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  void _showContactOptions(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final channelsAsync = ref.watch(contactChannelsProvider);
-
-            return Container(
-              decoration: BoxDecoration(
-                color: context.boxClr,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-              ),
-              padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 16.w),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40.w,
-                    height: 4.h,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2.r),
-                    ),
-                  ),
-                  SizedBox(height: 20.h),
-                  Text(
-                    'Contact Us',
-                    style: AppFonts.sb20(color: context.textPrimaryClr),
-                  ),
-                  SizedBox(height: 20.h),
-                  channelsAsync.when(
-                    data: (channels) {
-                      if (channels.isEmpty) {
-                        return Padding(
-                          padding: EdgeInsets.all(20.h),
-                          child: Text(
-                            "No contact channels available",
-                            style: AppFonts.m16(
-                              color: context.textSecondaryClr,
-                            ),
-                          ),
-                        );
-                      }
-                      return Column(
-                        children: channels.map((channel) {
-                          return ListTile(
-                            leading: _getChannelIcon(channel.id),
-                            title: Text(
-                              channel.title,
-                              style: AppFonts.m16(
-                                color: context.textPrimaryClr,
-                              ),
-                            ),
-                            onTap: () {
-                              if (channel.value != null) {
-                                _launchUrl(channel.value!);
-                              }
-                            },
-                          );
-                        }).toList(),
-                      );
-                    },
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Text(
-                      'Error: $e',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                  SizedBox(height: 20.h),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _getChannelIcon(String id) {
-    // Return appropriate icon based on channel type/id
-    // Simple basic icons for now
-    switch (id.toLowerCase()) {
-      case 'whatsapp':
-        return const Icon(Icons.message, color: Colors.green);
-      case 'email':
-      case 'customer_support':
-        return const Icon(Icons.email, color: Colors.blue);
-      case 'phone':
-        return const Icon(Icons.phone, color: Colors.blue);
-      case 'facebook':
-        return const Icon(Icons.facebook, color: Colors.blue);
-      case 'instagram':
-        return const Icon(Icons.camera_alt, color: Colors.pink); // Placeholder
-      case 'twitter':
-        return const Icon(Icons.alternate_email, color: Colors.lightBlue);
-      case 'website':
-        return const Icon(Icons.language, color: Colors.blueAccent);
-      default:
-        return const Icon(Icons.link, color: Colors.grey);
-    }
   }
 
   Future<void> _launchUrl(String urlString) async {

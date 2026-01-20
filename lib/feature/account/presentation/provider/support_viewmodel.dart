@@ -13,3 +13,15 @@ final contactChannelsProvider = FutureProvider<List<SupportChannel>>((
   final repository = ref.watch(supportRepositoryProvider);
   return repository.getContactChannels();
 });
+
+final privacyPolicyProvider = FutureProvider<PrivacyPolicyContent>((ref) async {
+  final repository = ref.watch(supportRepositoryProvider);
+  return repository.getPrivacyPolicyContent();
+});
+
+final termsOfServiceProvider = FutureProvider<TermsOfServiceContent>((
+  ref,
+) async {
+  final repository = ref.watch(supportRepositoryProvider);
+  return repository.getTermsOfServiceContent();
+});
