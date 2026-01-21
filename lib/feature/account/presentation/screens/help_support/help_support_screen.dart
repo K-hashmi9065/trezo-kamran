@@ -9,6 +9,7 @@ import '../../../../../core/constants/fonts.dart';
 import '../../widgets/menu_items.dart';
 import '../../provider/support_viewmodel.dart';
 import 'contact_support_screen.dart';
+import 'faq_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'term_services_screen.dart';
 
@@ -65,7 +66,14 @@ class HelpSupportScreen extends ConsumerWidget {
                           return MenuItem(
                             title: item.title,
                             onTap: () {
-                              if (item.id == 'contact_support') {
+                              if (item.id == 'faq') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const FaqScreen(),
+                                  ),
+                                );
+                              } else if (item.id == 'contact_support') {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(

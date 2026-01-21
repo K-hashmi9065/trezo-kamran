@@ -152,6 +152,30 @@ class SupportRepository {
       return TermsOfServiceContent(effectiveDate: '', sections: []);
     }
   }
+
+  // Fetch FAQ content
+  Future<FaqContent> getFaqContent() async {
+    try {
+      final snapshot = await _firestore
+          .collection('support_menu')
+          .doc('faq')
+          .collection('questions')
+          .get();
+
+      final items = snapshot.docs
+          .map((doc) => FaqItem.fromFirestore(doc))
+          .where((item) => item.question.isNotEmpty && item.answer.isNotEmpty)
+          .toList();
+
+      // Sort by order
+      items.sort((a, b) => a.order.compareTo(b.order));
+
+      return FaqContent(items: items);
+    } catch (e) {
+      print('Error fetching FAQ: $e');
+      return FaqContent(items: []);
+    }
+  }
 }
 
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {

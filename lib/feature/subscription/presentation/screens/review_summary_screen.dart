@@ -8,6 +8,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/app_large_elevated_button.dart';
+import '../../data/datasources/subscription_service.dart';
 import '../viewmodel/plan_viewmodel.dart';
 import '../viewmodel/plan_state.dart';
 import '../widgets/custom_confirm_payment_card.dart';
@@ -207,8 +208,43 @@ class ReviewSummaryScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(8.0),
           child: AppLargeElevatedButton(
             text: "Confirm Payment - ${plan.displayPrice}",
-            onPressed: () {
-              context.push(RouteNames.benifitUnlockScreen); // navigate
+            onPressed: () async {
+              try {
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) =>
+                      const Center(child: CircularProgressIndicator()),
+                );
+
+                // Process subscription (set isPro and create subscription document)
+                final subscriptionService = ref.read(
+                  subscriptionServiceProvider,
+                );
+                await subscriptionService.processSubscription(plan);
+
+                if (!context.mounted) return;
+
+                // Close loading dialog
+                context.pop();
+
+                // Navigate to benefit unlock screen
+                context.push(RouteNames.benifitUnlockScreen);
+              } catch (e) {
+                if (!context.mounted) return;
+
+                // Close loading dialog
+                context.pop();
+
+                // Show error
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to process subscription: $e'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
             },
           ),
         ),

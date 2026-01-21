@@ -8,6 +8,7 @@ import '../../feature/account/presentation/screens/help_support/help_support_scr
 import '../../feature/account/presentation/screens/preference_screen.dart';
 import '../../feature/account/presentation/screens/profile_screen.dart';
 import '../../feature/account/presentation/screens/linked_account.dart';
+import '../../feature/account/presentation/screens/subscribed_screen.dart';
 import '../../feature/home/presentation/screens/archived_screen.dart';
 import '../../feature/home/presentation/screens/empty_goal_screen.dart';
 import '../../feature/home/presentation/screens/home_screen.dart';
@@ -123,6 +124,12 @@ final appRouter = GoRouter(
       name: RouteNames.benifitUnlockScreen,
       path: RouteNames.benifitUnlockScreen,
       builder: (context, state) => const BenifitUnlockScreen(),
+    ),
+    // billing & subscriptions screen route
+    GoRoute(
+      name: RouteNames.subscribedScreen,
+      path: RouteNames.subscribedScreen,
+      builder: (context, state) => const SubscribedScreen(),
     ),
     // account & linked accounts screen route
     GoRoute(

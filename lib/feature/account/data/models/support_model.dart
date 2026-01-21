@@ -149,3 +149,47 @@ class TermsOfServiceSection {
     );
   }
 }
+
+// FAQ Models
+class FaqContent {
+  final List<FaqItem> items;
+
+  FaqContent({required this.items});
+}
+
+class FaqItem {
+  final String id;
+  final String question;
+  final String answer;
+  final String category;
+  final int order;
+
+  FaqItem({
+    required this.id,
+    required this.question,
+    required this.answer,
+    required this.category,
+    required this.order,
+  });
+
+  factory FaqItem.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    // Handle order as either string or number
+    int order = 0;
+    final orderData = data['order'];
+    if (orderData is int) {
+      order = orderData;
+    } else if (orderData is String) {
+      order = int.tryParse(orderData) ?? 0;
+    }
+
+    return FaqItem(
+      id: doc.id,
+      question: data['question'] ?? '',
+      answer: data['answer'] ?? '',
+      category: data['category'] ?? 'General',
+      order: order,
+    );
+  }
+}

@@ -18,6 +18,8 @@ class RouteNames {
   static const reviewSummaryScreen = '/account/payment/review_summary';
   // upgrade  & upgrade plan screen route name
   static const upgradePlanScreen = '/account/payment/upgrade_plan';
+  // billing & subscriptions screen route name
+  static const subscribedScreen = '/account/subscribed';
   // account & linked accounts screen route name
   static const accountsLinkedScreen = '/account/linked_accounts';
   // account  & profile screen route name

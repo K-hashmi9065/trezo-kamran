@@ -25,3 +25,8 @@ final termsOfServiceProvider = FutureProvider<TermsOfServiceContent>((
   final repository = ref.watch(supportRepositoryProvider);
   return repository.getTermsOfServiceContent();
 });
+
+final faqProvider = FutureProvider<FaqContent>((ref) async {
+  final repository = ref.watch(supportRepositoryProvider);
+  return repository.getFaqContent();
+});

@@ -210,11 +210,26 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                             context.push(RouteNames.accountSecurityScreen);
                           },
                         ),
-                        MenuItem(
-                          iconPath: AppAssets.paymentIcon,
-                          title: 'Billing & Subscriptions',
-                          onTap: () {
-                            context.push(RouteNames.upgradePlanScreen);
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final userAsync = ref.watch(currentUserProvider);
+
+                            return MenuItem(
+                              iconPath: AppAssets.paymentIcon,
+                              title: 'Billing & Subscriptions',
+                              onTap: () {
+                                // Check user pro status and navigate accordingly
+                                userAsync.whenData((user) {
+                                  if (user != null && user.isPro) {
+                                    // Pro user - show subscription details
+                                    context.push(RouteNames.subscribedScreen);
+                                  } else {
+                                    // Free user - show upgrade plan
+                                    context.push(RouteNames.upgradePlanScreen);
+                                  }
+                                });
+                              },
+                            );
                           },
                         ),
 
